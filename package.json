@@ -1,0 +1,22 @@
+{
+  "name": "project-bazarra",
+  "version": "1.0.0",
+  "description": "Just initializing node",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Capstone-Projects-2022-Spring/project-bazarra.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Capstone-Projects-2022-Spring/project-bazarra/issues"
+  },
+  "homepage": "https://github.com/Capstone-Projects-2022-Spring/project-bazarra#readme",
+  "dependencies": {
+    "express": "^4.17.3"
+  }
+}
