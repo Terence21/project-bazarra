@@ -6,11 +6,8 @@ var router = express.Router()
 const app = express()
 const port = process.env.PORT
 
-
 process.env.TEST // "TEST"
 process.env.BAZARRA // "BAZARRA"
-
-
 
 app.listen(port, () => {
     console.log(`Project ${process.env.BAZARRA} listening on port ${port}`)
