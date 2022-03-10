@@ -1,5 +1,6 @@
 const express = require('express')
 const { MongoClient } = require("mongodb");
+const { initializeApp } = require('firebase-admin/app');
 require('dotenv').config();
 
 var router = express.Router()
