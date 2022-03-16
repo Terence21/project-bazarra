@@ -17,6 +17,8 @@
   },
   "homepage": "https://github.com/Capstone-Projects-2022-Spring/project-bazarra#readme",
   "dependencies": {
-    "express": "^4.17.3"
+    "dotenv": "^16.0.0",
+    "express": "^4.17.3",
+    "mongodb": "^4.4.1"
   }
 }
