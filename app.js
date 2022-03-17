@@ -1,20 +1,104 @@
 const express = require('express')
-const {MongoClient} = require("mongodb");
+const {MongoClient} = require("mongodb")
+const {initializeApp, applicationDefault} = require('firebase-admin/app')
+const {getAuth} = require("firebase-admin/auth")
+const admin = require('firebase-admin')
+var serviceAccount = require("./bazaara-342116-firebase-adminsdk-bazyf-419376ebb8.json")
+
 require('dotenv').config();
 
 var router = express.Router()
 const app = express()
 const port = process.env.PORT
 
-process.env.TEST
-process.env.BAZARRA
+initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: process.env.FBProjectID,
+});
+
+const listAllUsers = (nextPageToken) => {
+    getAuth()
+        .listUsers(1000, nextPageToken)
+        .then((listUsersResult) => {
+            listUsersResult.users.forEach((userRecord) => {
+                console.log('user', userRecord.toJSON())
+            });
+            if (listUsersResult.pageToken) {
+                listAllUsers(listUsersResult.pageToken)
+            }
+        })
+        .catch((error) => {
+            console.log('Error listing users:', error);
+        });
+};
 
 app.listen(port, () => {
+    listAllUsers()
     console.log(`Project ${process.env.BAZARRA} listening on port ${port}`)
 })
 
 app.get('/', (req, res) => {
-    res.send('Hello From Bazarra')
+    res.send({"status": 200, "message": 'Hello From Bazarra'})
+})
+
+app.get('/validEmail/:email', (req, res) => {
+    let email = req.params.email
+
+    getAuth()
+        .getUserByEmail(email)
+        .then((person) => {
+            res.send({
+                "status": 200,
+                "user": person.toJSON()
+            })
+        })
+        .catch(() => {
+            console.log(`invalid email: ${email}`)
+            res.send({"status": 400, "message": "invalid email"})
+        });
+})
+
+app.get('/validToken/:idToken', (req, res) => {
+    let idToken = req.params.idToken
+    let checkRevoked = true;
+
+    getAuth()
+        .verifyIdToken(idToken, checkRevoked)
+        .then((decodedToken) => {
+            const uid = decodedToken.uid
+            console.log("valid token")
+            res.send({"status": 200, "tokenState": true})
+        })
+        .catch((error) => {
+            if (error.code === 'auth/id-token-revoked') {
+                console.log("force reauthenticate on client")
+                res.send({"status": 200, "tokenState": false})
+            } else {
+                console.log("token does not exist")
+                res.send({"status": 400, "message": "token does not exist"})
+            }
+        });
+})
+
+app.get('/revoke/:uid', (req, res) => {
+    let uid = req.params.uid
+
+    getAuth()
+        .revokeRefreshTokens(uid)
+        .then(() => {
+            return getAuth().getUser(uid);
+        })
+        .then((userRecord) => {
+            return new Date(userRecord.tokensValidAfterTime).getTime() / 1000;
+        })
+        .then((timestamp) => {
+            console.log(`Token revoked at: ${timestamp}`);
+            res.send({"status": 200})
+        })
+        .catch(() => {
+            console.log("Failed to revoke token")
+            res.send({"status": 400, "message": "Failed to revoke token, does not exist"})
+        })
 })
 
 const uri = process.env.MONGODB;
@@ -24,7 +108,7 @@ async function run() {
     try {
         await client.connect();
         await logDatabaseConnections(client)
-        console.log("Connection Successful")
+        console.log("Database Connection Successful")
     } catch (e) {
         console.log('client database cluster connection failed')
         console.log(e.message)
