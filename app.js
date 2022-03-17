@@ -39,8 +39,6 @@ app.listen(port, () => {
     console.log(`Project ${process.env.BAZARRA} listening on port ${port}`)
 })
 
-
-
 app.get('/', (req, res) => {
     res.send({"status": 200, "message": 'Hello From Bazarra'})
 })
@@ -109,8 +107,11 @@ const client = new MongoClient(uri);
 async function run() {
     try {
         await client.connect();
-    } catch {
+        await logDatabaseConnections(client)
+        console.log("Database Connection Successful")
+    } catch (e) {
         console.log('client database cluster connection failed')
+        console.log(e.message)
     } finally {
         await client.close();
     }
@@ -119,7 +120,7 @@ async function run() {
 run().catch(console.error)
 
 async function logDatabaseConnections(client) {
-    let databaseConnections = await client.db().admin().listDatabases()
+    databaseConnections = await client.db().admin().listDatabases()
 
     console.log("Databases:");
     databaseConnections.databases.forEach(db => console.log(` - ${db.name}`));
