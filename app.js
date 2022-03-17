@@ -17,7 +17,6 @@ initializeApp({
 });
 
 const listAllUsers = (nextPageToken) => {
-
     getAuth()
         .listUsers(1000, nextPageToken)
         .then((listUsersResult) => {
@@ -25,7 +24,6 @@ const listAllUsers = (nextPageToken) => {
                 console.log('user', userRecord.toJSON())
             });
             if (listUsersResult.pageToken) {
-                // List next batch of users.
                 listAllUsers(listUsersResult.pageToken)
             }
         })
@@ -56,7 +54,7 @@ app.get('/validEmail/:email', (req, res) => {
         })
         .catch(() => {
             console.log(`invalid email: ${email}`)
-            res.send({"status": 400})
+            res.send({"status": 400, "message": "invalid email"})
         });
 })
 
@@ -66,17 +64,19 @@ app.get('/validToken/:idToken', (req, res) => {
 
     getAuth()
         .verifyIdToken(idToken, checkRevoked)
-        .then((payload) => {
+        .then((decodedToken) => {
+            const uid = decodedToken.uid
             console.log("valid token")
-            res.send({"status": 200})
+            res.send({"status": 200, "tokenState": true})
         })
         .catch((error) => {
             if (error.code === 'auth/id-token-revoked') {
                 console.log("force reauthenticate on client")
+                res.send({"status": 200, "tokenState": false})
             } else {
                 console.log("token does not exist")
+                res.send({"status": 400, "message": "token does not exist"})
             }
-            res.send({"status": 400})
         });
 })
 
@@ -97,7 +97,7 @@ app.get('/revoke/:uid', (req, res) => {
         })
         .catch(() => {
             console.log("Failed to revoke token")
-            res.send({"status": 400})
+            res.send({"status": 400, "message": "Failed to revoke token, does not exist"})
         })
 })
 
