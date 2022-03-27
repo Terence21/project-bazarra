@@ -1,12 +1,17 @@
 const express = require('express')
-const {MongoClient, ObjectID, ObjectId} = require("mongodb")
-const {initializeApp, applicationDefault} = require('firebase-admin/app')
-const {getAuth, UserRecord} = require("firebase-admin/auth")
+const {MongoClient, ObjectId} = require("mongodb")
+const {initializeApp} = require('firebase-admin/app')
+const {getAuth} = require("firebase-admin/auth")
 const admin = require('firebase-admin')
 var serviceAccount = require("./bazaara-342116-firebase-adminsdk-bazyf-419376ebb8.json")
-const lists = require('./lists')
-const {users, findUser, addUser, findOrCreateUser, addList, updateList, removeList} = require("./lists");
+const {
+    users,
+    findUser,
+    findOrCreateUser,
+    listManagement
+} = require("./lists");
 require('dotenv').config()
+const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
 
 const port = process.env.PORT
 
@@ -127,7 +132,7 @@ app.get('/lists/:uid', (async (req, res) => {
         res.send(user.listCollection)
     }).catch(reason => {
         console.log(reason)
-        res.sendStatus(400)
+        res.send({status: 400, "message": reason.message})
     })
 }))
 
@@ -135,17 +140,22 @@ app.post('/lists/add/:uid', (async (req, res) => {
     try {
         const id = req.params.uid
         const body = req.body
-        const list = {id: new ObjectId().toHexString(), body}
-        await addList(client, id, list).then(() => {
-            res.sendStatus(200)
-        }).catch((e) => {
-            console.log(e)
-            res.send(400)
-        })
 
+        if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
+            const list = {id: new ObjectId().toHexString(), body}
+            await listManagement(client, id, ADD_LIST, {list: list}).then(() => {
+                res.sendStatus(200)
+            }).catch((e) => {
+                console.log(e)
+                res.send(400)
+            })
+        } else {
+            console.log(`INVALID REQUEST BODY USER: ${id} => ${body}`)
+            res.send({status: 400, message: `INVALID REQUEST BODY USER: ${id} => ${body}`})
+        }
     } catch (e) {
         console.log(e)
-        res.send(400)
+        res.send({status: 400, "message": e.message})
     }
 }))
 
@@ -154,36 +164,48 @@ app.post('/lists/update/:uid/listindex/:idx', (async (req, res) => {
         const id = req.params['uid']
         const idx = req.params['idx']
         const body = req.body
-        await updateList(client, id, body, idx).then(() => {
-            res.sendStatus(200)
-        }).catch((e) => {
-            console.log(e)
-            res.send(400)
-        })
+
+        if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
+            await listManagement(client, id, UPDATE_LIST, {idx: idx, body: body}).then(() => {
+                res.sendStatus(200)
+            }).catch((e) => {
+                console.log(e)
+                res.send({status: 400, "message": e.message})
+            })
+        } else {
+            console.log(`INVALID REQUEST BODY USER: ${id} => ${body}`)
+            res.send({status: 400, message: `INVALID REQUEST BODY USER: ${id} => ${body}`})
+        }
 
     } catch (e) {
         console.log(e)
-        res.send(400)
+        res.send({status: 400, "message": e.message})
     }
 }))
 
 app.delete('/lists/delete/:uid/list/:id', (async (req, res) => {
     try {
         const uid = req.params['uid']
-        const listid = req.params['id']
-        //   const body = req.body
-        await removeList(client, uid, listid).then(() => {
+        const listId = req.params['id']
+        await listManagement(client, uid, REMOVE_LIST, {listId: listId}).then(() => {
             res.sendStatus(200)
         }).catch((e) => {
             console.log(e)
-            res.send(400)
+            res.send({status: 400, "message": e.message})
         })
 
     } catch (e) {
         console.log(e)
-        res.send(400)
+        res.send({status: 400, "message": e.message})
     }
 }))
+
+async function logDatabaseConnections(client) {
+    let databaseConnections = await client.db().admin().listDatabases()
+
+    console.log("Databases:");
+    databaseConnections.databases.forEach(db => console.log(` - ${db.name}`));
+}
 
 async function run() {
     try {
@@ -195,14 +217,6 @@ async function run() {
         console.log(e.message)
     }
 }
-
-async function logDatabaseConnections(client) {
-    let databaseConnections = await client.db().admin().listDatabases()
-
-    console.log("Databases:");
-    databaseConnections.databases.forEach(db => console.log(` - ${db.name}`));
-}
-
 
 process.on('exit', async () => {
     await client.close()
