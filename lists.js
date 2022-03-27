@@ -55,7 +55,8 @@ async function listManagement(client, user_id, type, req) {
             break
         }
         case UPDATE_LIST : {
-            body.document = {$set: {[`listCollection.${req.idx}.body`]: {$exists: true, $eq: req.body}}}
+            body.query = {uid: user_id, [`listCollection.${req.idx}`]: {$exists: true}}
+            body.document = {$set: {[`listCollection.${req.idx}.body`]: req.body}}
             break
         }
         case REMOVE_LIST : {
@@ -66,11 +67,14 @@ async function listManagement(client, user_id, type, req) {
             throw new Error("")
         }
     }
-    await client.db(USER_DB).collection(USER_COLLECTION).updateOne(
+    return await client.db(USER_DB).collection(USER_COLLECTION).updateOne(
         body.query,
         body.document,
         body.options
-    ).then(result => console.log(result))
+    ).then(result => {
+        console.log(result)
+        return result
+    })
 }
 
 exports.findUid = findUid

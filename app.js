@@ -1,65 +1,36 @@
+require('dotenv').config()
 const express = require('express')
 const {MongoClient, ObjectId} = require("mongodb")
+
 const {initializeApp} = require('firebase-admin/app')
 const {getAuth} = require("firebase-admin/auth")
 const admin = require('firebase-admin')
-var serviceAccount = require("./bazaara-342116-firebase-adminsdk-bazyf-419376ebb8.json")
+const serviceAccount = require("./bazaara-342116-firebase-adminsdk-bazyf-419376ebb8.json");
+
 const {
-    users,
-    findUser,
-    findOrCreateUser,
-    listManagement
+    users, findUser, findOrCreateUser, listManagement
 } = require("./lists");
-require('dotenv').config()
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
 
 const port = process.env.PORT
+const uri = process.env.MONGODB;
 
 const app = express()
-app.use(express.static('public'))
-
-const uri = process.env.MONGODB;
 const client = new MongoClient(uri)
-const loadClient = async () => {
-    await client.connect()
-}
-loadClient().catch(console.error)
-run().catch(console.error)
+runMongoConnection().catch(console.error)
 
 initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: process.env.FBProjectID,
+    credential: admin.credential.cert(serviceAccount), projectId: process.env.FBProjectID,
 });
 
-const listAllUsers = (nextPageToken) => {
-    const userArr = []
-    getAuth()
-        .listUsers(1000, nextPageToken)
-        .then(async (listUsersResult) => {
-            for (const userRecord of listUsersResult.users) {
-                const user = await findOrCreateUser(client, userRecord.uid)
-                userArr.push(user)
-            }
-            if (listUsersResult.pageToken) {
-                listAllUsers(listUsersResult.pageToken)
-            }
-            return userArr
-        })
-        .then((arr) => {
-            console.log(users)
-        })
-        .catch((error) => {
-            console.log('Error listing users:', error);
-        });
-};
-
+app.use(express.static('public'))
+app.use(express.json())
 app.listen(port, () => {
     listAllUsers()
     console.log(`Project ${process.env.BAZARRA} listening on port ${port}`)
 })
 
-app.use(express.json())
-
+// ------ USER -------
 app.get('/', (req, res) => {
     res.send({"status": 200, "message": 'Hello From Bazarra'})
 })
@@ -71,8 +42,7 @@ app.get('/validEmail/:email', (req, res) => {
         .getUserByEmail(email)
         .then((person) => {
             res.send({
-                "status": 200,
-                "user": person.toJSON()
+                "status": 200, "user": person.toJSON()
             })
         })
         .catch(() => {
@@ -141,6 +111,7 @@ app.post('/lists/add/:uid', (async (req, res) => {
         const id = req.params.uid
         const body = req.body
 
+        // if valid body request format
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
             const list = {id: new ObjectId().toHexString(), body}
             await listManagement(client, id, ADD_LIST, {list: list}).then(() => {
@@ -159,19 +130,25 @@ app.post('/lists/add/:uid', (async (req, res) => {
     }
 }))
 
-app.post('/lists/update/:uid/listindex/:idx', (async (req, res) => {
+app.post('/lists/update/:uid/listIndex/:idx', (async (req, res) => {
     try {
         const id = req.params['uid']
         const idx = req.params['idx']
         const body = req.body
 
+        // if valid body request format
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
-            await listManagement(client, id, UPDATE_LIST, {idx: idx, body: body}).then(() => {
-                res.sendStatus(200)
+            await listManagement(client, id, UPDATE_LIST, {idx: idx, body: body}).then((result) => {
+                if (result.modifiedCount > 0) {
+                    res.sendStatus(200)
+                } else {
+                    res.send({status: 400, "message": "List not updated, invalid list type or same list"})
+                }
             }).catch((e) => {
                 console.log(e)
                 res.send({status: 400, "message": e.message})
             })
+
         } else {
             console.log(`INVALID REQUEST BODY USER: ${id} => ${body}`)
             res.send({status: 400, message: `INVALID REQUEST BODY USER: ${id} => ${body}`})
@@ -187,8 +164,12 @@ app.delete('/lists/delete/:uid/list/:id', (async (req, res) => {
     try {
         const uid = req.params['uid']
         const listId = req.params['id']
-        await listManagement(client, uid, REMOVE_LIST, {listId: listId}).then(() => {
-            res.sendStatus(200)
+        listManagement(client, uid, REMOVE_LIST, {listId: listId}).then((result) => {
+            if (result.modifiedCount > 0) {
+                res.sendStatus(200)
+            } else {
+                res.send({status: 400, "message": "List not removed, invalid list type or same list"})
+            }
         }).catch((e) => {
             console.log(e)
             res.send({status: 400, "message": e.message})
@@ -207,7 +188,7 @@ async function logDatabaseConnections(client) {
     databaseConnections.databases.forEach(db => console.log(` - ${db.name}`));
 }
 
-async function run() {
+async function runMongoConnection() {
     try {
         await (await client).connect();
         await logDatabaseConnections(client)
@@ -217,6 +198,26 @@ async function run() {
         console.log(e.message)
     }
 }
+
+const listAllUsers = (nextPageToken) => {
+    getAuth()
+        .listUsers(1000, nextPageToken)
+        .then(async (listUsersResult) => {
+            for (const userRecord of listUsersResult.users) {
+                await findOrCreateUser(client, userRecord.uid)
+            }
+            if (listUsersResult.pageToken) {
+                listAllUsers(listUsersResult.pageToken)
+            }
+        })
+        .then(() => {
+            // users array stored in lists.js
+            console.log(users)
+        })
+        .catch((error) => {
+            console.log('Error listing users:', error);
+        });
+};
 
 process.on('exit', async () => {
     await client.close()
