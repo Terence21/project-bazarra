@@ -10,6 +10,8 @@ const REMOVE_LIST = "removeList"
 // MONGODB GLOBALS
 const USER_DB = "BazaaraUsers"
 const USER_COLLECTION = "UserCollection"
+const PRODUCTS_DB = "BazaaraGrocery"
+const PRODUCTS_COLLECTION = "GroceryCollection"
 
 exports.ADD_LIST = ADD_LIST
 exports.UPDATE_LIST = UPDATE_LIST
@@ -17,3 +19,5 @@ exports.REMOVE_LIST = REMOVE_LIST
 
 exports.USER_DB = USER_DB
 exports.USER_COLLECTION = USER_COLLECTION
+exports.PRODUCTS_DB = PRODUCTS_DB
+exports.PRODUCTS_COLLECTION = PRODUCTS_COLLECTION

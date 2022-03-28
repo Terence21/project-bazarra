@@ -10,6 +10,7 @@ const serviceAccount = require("./bazaara-342116-firebase-adminsdk-bazyf-419376e
 const {
     users, findUser, findOrCreateUser, listManagement
 } = require("./lists");
+const {productSuggestByName, searchProductByName, loadAllProducts, pageOfProducts} = require('./products')
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
 
 const port = process.env.PORT
@@ -17,16 +18,20 @@ const uri = process.env.MONGODB;
 
 const app = express()
 const client = new MongoClient(uri)
-runMongoConnection().catch(console.error)
 
+
+let products = []
 initializeApp({
     credential: admin.credential.cert(serviceAccount), projectId: process.env.FBProjectID,
 });
 
 app.use(express.static('public'))
 app.use(express.json())
-app.listen(port, () => {
-    listAllUsers()
+app.listen(port, async () => {
+    //   listAllUsers()
+    runMongoConnection().then(async () => {
+        products = await loadAllProducts(client)
+    }).catch(console.error)
     console.log(`Project ${process.env.BAZARRA} listening on port ${port}`)
 })
 
@@ -178,6 +183,59 @@ app.delete('/lists/delete/:uid/list/:id', (async (req, res) => {
     } catch (e) {
         console.log(e)
         res.send({status: 400, "message": e.message})
+    }
+}))
+
+// ----- PRODUCTS -----
+app.get('/products', (async (req, res) => {
+    loadAllProducts(client).then(result => {
+        console.log(result)
+        res.send(result)
+    }).catch(e => {
+        console.log(e)
+        res.send(400)
+    })
+}))
+app.get('/products/:productId', (async (req, res) => {
+    try {
+        const productId = req.params['productId']
+        searchProductByName(client, productId).then(result => {
+            console.log(result)
+            res.send(result)
+        }).catch(e => {
+            console.log(e)
+            res.send(405)
+        })
+    } catch (e) {
+        console.log(e)
+        res.send(400)
+    }
+}))
+
+app.get('/products/search', (async (req, res) => {
+    try {
+        const prefix = req.query.prefix
+        await productSuggestByName(client, prefix).then(result => {
+            console.log(result)
+            res.send(result)
+        }).catch(e => {
+            console.log(e)
+            res.send(405)
+        })
+    } catch (e) {
+        console.log(e)
+        res.send(400)
+    }
+}))
+
+app.get('/products/search/:page', (async (req, res) => {
+    try {
+        const page = req.params['page']
+        let result = pageOfProducts(page, products)
+        res.send(result)
+    } catch (e) {
+        console.log(e)
+        res.send(400)
     }
 }))
 
