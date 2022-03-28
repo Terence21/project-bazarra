@@ -35,6 +35,14 @@ async function productSuggestByName(client, label) {
     ]).toArray()
 }
 
+async function addProduct(client, body) {
+    if (typeof (body['name']) == "string" && typeof (body['productId']) == "number" && typeof (body['upc_code']) == "number" && typeof (body['price']) == "number" && typeof (body['store']) == "object" && typeof (body['store']['name']) == "string" && typeof (body['store']['latitude']) == "number" && typeof (body['store']['longitude']) == "number") {
+        client.db(PRODUCTS_DB).collection(PRODUCTS_COLLECTION).insertOne(body)
+    } else {
+        throw new Error("Invalid product type")
+    }
+}
+
 async function searchProductByName(client, productId) {
     const collection = await client.db(PRODUCTS_DB).collection(PRODUCTS_COLLECTION)
     return await collection.findOne({_id: ObjectId(productId)})
@@ -44,3 +52,17 @@ exports.productSuggestByName = productSuggestByName
 exports.searchProductByName = searchProductByName
 exports.loadAllProducts = loadAllProducts
 exports.pageOfProducts = pageOfProducts
+exports.addProduct = addProduct
+
+/**
+ *name
+ *productId
+ *upc_code
+ *price
+ *store : {
+ *     name
+ *     lat
+ *     long
+ *}
+ *
+ */

@@ -10,7 +10,7 @@ const serviceAccount = require("./bazaara-342116-firebase-adminsdk-bazyf-419376e
 const {
     users, findUser, findOrCreateUser, listManagement
 } = require("./lists");
-const {productSuggestByName, searchProductByName, loadAllProducts, pageOfProducts} = require('./products')
+const {productSuggestByName, searchProductByName, loadAllProducts, pageOfProducts, addProduct} = require('./products')
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
 
 const port = process.env.PORT
@@ -232,12 +232,27 @@ app.get('/products/search/:page', (async (req, res) => {
     try {
         const page = req.params['page']
         let result = pageOfProducts(page, products)
-        res.send(result)
+        console.log(result.message)
+        res.send({status: 400, "message": result.message})
     } catch (e) {
         console.log(e)
-        res.send(400)
+        res.send({status: 400, "message": e.message})
     }
 }))
+
+app.post('/products/add', async (req, res) => {
+    try {
+        addProduct(client, req.body).then(() => {
+            res.send({status: 200})
+        }).catch(e => {
+            console.log(e.message)
+            res.send({status: 400, "message": e.message})
+        })
+    } catch (e) {
+        console.log(e.message)
+        res.send({status: 400, "message": e.message})
+    }
+})
 
 async function logDatabaseConnections(client) {
     let databaseConnections = await client.db().admin().listDatabases()
