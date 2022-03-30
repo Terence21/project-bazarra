@@ -10,7 +10,14 @@ const serviceAccount = require("./bazaara-342116-firebase-adminsdk-bazyf-419376e
 const {
     users, findUser, findOrCreateUser, listManagement
 } = require("./lists");
-const {productSuggestByName, searchProductByName, loadAllProducts, pageOfProducts, addProduct} = require('./products')
+const {
+    productSuggestByName,
+    searchProductByName,
+    loadAllProducts,
+    pageOfProducts,
+    addProduct,
+    queryProduct
+} = require('./products')
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
 
 const port = process.env.PORT
@@ -28,7 +35,7 @@ initializeApp({
 app.use(express.static('public'))
 app.use(express.json())
 app.listen(port, async () => {
-    //   listAllUsers()
+    listAllUsers()
     runMongoConnection().then(async () => {
         products = await loadAllProducts(client)
     }).catch(console.error)
@@ -145,7 +152,7 @@ app.post('/lists/update/:uid/listIndex/:idx', (async (req, res) => {
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
             await listManagement(client, id, UPDATE_LIST, {idx: idx, body: body}).then((result) => {
                 if (result.modifiedCount > 0) {
-                    res.sendStatus(200)
+                    res.send({status: 200})
                 } else {
                     res.send({status: 400, "message": "List not updated, invalid list type or same list"})
                 }
@@ -189,53 +196,65 @@ app.delete('/lists/delete/:uid/list/:id', (async (req, res) => {
 // ----- PRODUCTS -----
 app.get('/products', (async (req, res) => {
     loadAllProducts(client).then(result => {
-        console.log(result)
         res.send(result)
     }).catch(e => {
         console.log(e)
-        res.send(400)
+        res.send({status: 400, "message": e.message})
     })
 }))
-app.get('/products/:productId', (async (req, res) => {
+app.get('/products/id/:productId', (async (req, res) => {
     try {
         const productId = req.params['productId']
         searchProductByName(client, productId).then(result => {
-            console.log(result)
             res.send(result)
         }).catch(e => {
             console.log(e)
-            res.send(405)
+            res.send({status: 400, "message": e.message})
         })
     } catch (e) {
         console.log(e)
-        res.send(400)
+        res.send({status: 400, "message": e.message})
+    }
+}))
+
+app.get('/products/suggest', (async (req, res) => {
+    try {
+        const prefix = req.query.prefix
+        await productSuggestByName(client, prefix).then(result => {
+            res.send(result)
+        }).catch(e => {
+            console.log(e)
+            res.send({status: 400, "message": e.message})
+        })
+    } catch (e) {
+        console.log(e.message)
+        res.send({status: 400, "message": e.message})
+    }
+}))
+
+
+app.get('/products/default/:page', (async (req, res) => {
+    try {
+        const page = req.params['page']
+        let result = pageOfProducts(page, products)
+        res.send({status: 400, "message": result.message})
+    } catch (e) {
+        console.log(e)
+        res.send({status: 400, "message": e.message})
     }
 }))
 
 app.get('/products/search', (async (req, res) => {
     try {
-        const prefix = req.query.prefix
-        await productSuggestByName(client, prefix).then(result => {
-            console.log(result)
-            res.send(result)
+        console.log("connected")
+        queryProduct(client, req.query).then(result => {
+            res.send({status: 200, query: result})
         }).catch(e => {
             console.log(e)
-            res.send(405)
+            res.send(400)
         })
     } catch (e) {
-        console.log(e)
-        res.send(400)
-    }
-}))
-
-app.get('/products/search/:page', (async (req, res) => {
-    try {
-        const page = req.params['page']
-        let result = pageOfProducts(page, products)
-        console.log(result.message)
-        res.send({status: 400, "message": result.message})
-    } catch (e) {
-        console.log(e)
+        console.log(e.message)
         res.send({status: 400, "message": e.message})
     }
 }))

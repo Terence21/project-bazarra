@@ -48,21 +48,18 @@ async function searchProductByName(client, productId) {
     return await collection.findOne({_id: ObjectId(productId)})
 }
 
+async function queryProduct(client, query) {
+    const builder = {}
+    if (query.hasOwnProperty("name")) builder.name = {$regex: query.name}
+    if (query.hasOwnProperty("price")) builder.price = parseFloat(query.price)
+    if (query.hasOwnProperty("store")) builder["store.name"] = {$regex: query.store}
+    if (query.hasOwnProperty("upc_code")) builder.upc_code = parseInt(query.upc_code)
+    return await client.db(PRODUCTS_DB).collection(PRODUCTS_COLLECTION).find(builder).toArray()
+}
+
 exports.productSuggestByName = productSuggestByName
 exports.searchProductByName = searchProductByName
 exports.loadAllProducts = loadAllProducts
 exports.pageOfProducts = pageOfProducts
 exports.addProduct = addProduct
-
-/**
- *name
- *productId
- *upc_code
- *price
- *store : {
- *     name
- *     lat
- *     long
- *}
- *
- */
+exports.queryProduct = queryProduct
