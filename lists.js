@@ -1,7 +1,16 @@
 const {getAuth} = require("firebase-admin/auth");
 require('dotenv').config()
 require('./globals')
-const {ADD_LIST, UPDATE_LIST, REMOVE_LIST, USER_DB, USER_COLLECTION, ADD_PRODUCT_LIST} = require("./globals");
+const {
+    ADD_LIST,
+    UPDATE_LIST,
+    REMOVE_LIST,
+    USER_DB,
+    USER_COLLECTION,
+    ADD_PRODUCT_LIST,
+    REMOVE_PRODUCT_LIST
+} = require("./globals");
+const {ObjectId} = require("mongodb");
 
 const users = []
 
@@ -37,7 +46,12 @@ async function findOrCreateUser(client, id) {
     return await findCollection(client).then(async (collection) => {
         if (await collection.countDocuments({uid: id}) === 0) {
             console.log(`added USER: ${id}`)
-            await client.db(USER_DB).collection(USER_COLLECTION).insertOne({'uid': id, latitude: null, longitude: null, 'listCollection': []})
+            await client.db(USER_DB).collection(USER_COLLECTION).insertOne({
+                'uid': id,
+                latitude: null,
+                longitude: null,
+                'listCollection': []
+            })
         }
         return await findUser(client, id)
     })
@@ -66,6 +80,10 @@ async function listManagement(client, user_id, type, req) {
         }
         case REMOVE_LIST : {
             body.document = {$pull: {listCollection: {id: req.listId}}}
+            break
+        }
+        case REMOVE_PRODUCT_LIST: {
+            body.document = {$pull: {[`listCollection.${req.idx}.body.products`]: {_id: ObjectId(req.productId)}}}
             break
         }
         default : {

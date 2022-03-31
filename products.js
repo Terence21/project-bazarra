@@ -1,4 +1,4 @@
-const {PRODUCTS_DB, PRODUCTS_COLLECTION, ADD_LIST, ADD_PRODUCT_LIST} = require('./globals')
+const {PRODUCTS_DB, PRODUCTS_COLLECTION, ADD_LIST, ADD_PRODUCT_LIST, REMOVE_PRODUCT_LIST} = require('./globals')
 const {ObjectId} = require("mongodb");
 const {listManagement} = require("./lists");
 const PRODUCT_INCREMENT = 200
@@ -45,12 +45,21 @@ async function addProduct(client, body) {
 }
 
 async function addProductToList(client, user_id, listIdx, productId) {
-    if (typeof user_id == "string" && typeof listIdx == "number" && typeof productId == "string") {
+    if (validListProduct(user_id, listIdx, productId)) {
         let product = await searchProductById(client, productId)
         if (product === null) throw new Error("Product DNE")
         return await listManagement(client, user_id, ADD_PRODUCT_LIST, {idx: listIdx, body: product})
     } else {
         throw new Error("Invalid Request type, productId or uid is not valid")
+    }
+}
+
+// you have to remove all associated with productId, not just one
+async function removeProductFromList(client, user_id, listIdx, productId) {
+    if (validListProduct(user_id, listIdx, productId)) {
+        return await listManagement(client, user_id, REMOVE_PRODUCT_LIST, {idx: listIdx, productId: productId})
+    } else {
+        throw new Error("Invalid Request Type, product not valid")
     }
 }
 
@@ -68,6 +77,10 @@ async function queryProduct(client, query) {
     return await client.db(PRODUCTS_DB).collection(PRODUCTS_COLLECTION).find(builder).toArray()
 }
 
+function validListProduct(user_id, listIdx, productId) {
+    return (typeof user_id == "string" && typeof listIdx == "number" && typeof productId == "string")
+}
+
 function validProduct(body) {
     return (typeof (body['name']) == "string" && typeof (body['productId']) == "number" && typeof (body['upc_code']) == "number" && typeof (body['price']) == "number"
         && typeof (body['image_url']) == "string" && typeof (body['weight']) == "string"
@@ -81,3 +94,4 @@ exports.pageOfProducts = pageOfProducts
 exports.addProduct = addProduct
 exports.queryProduct = queryProduct
 exports.addProductToList = addProductToList
+exports.removeProductFromList = removeProductFromList

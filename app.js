@@ -16,7 +16,7 @@ const {
     loadAllProducts,
     pageOfProducts,
     addProduct,
-    queryProduct, addProductToList
+    queryProduct, addProductToList, removeProductFromList
 } = require('./products')
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
 
@@ -176,7 +176,6 @@ app.post('/lists/add/:uid/product', (async (req, res, next) => {
     try {
         const uid = req.params['uid']
         const body = req.body
-        console.log(`here: ${body}`)
         const productId = body.productId
         const listIdx = body.listIdx
 
@@ -184,7 +183,23 @@ app.post('/lists/add/:uid/product', (async (req, res, next) => {
             if (result.modifiedCount > 0) {
                 res.send({status: 200})
             } else {
-                next({status: 400, message: "List not updated, invalid list type or same list"})
+                next({status: 400, message: "List not updated, invalid list/product type or same list/product"})
+            }
+        }).catch(next)
+    } catch (e) {
+        next({status: 400, message: e.message})
+    }
+}))
+
+app.delete('/lists/delete/:uid/product', (async (req, res, next) => {
+    try {
+        const uid = req.params['uid']
+        const body = req.body
+        removeProductFromList(client, uid, body['listIdx'], body['productId']).then(result => {
+            if (result.modifiedCount > 0) {
+                res.send({status: 200})
+            } else {
+                next({status: 400, message: "List not updated, invalid list/product type or same list/product"})
             }
         }).catch(next)
     } catch (e) {
