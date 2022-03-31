@@ -12,11 +12,11 @@ const {
 } = require("./lists");
 const {
     productSuggestByName,
-    searchProductByName,
+    searchProductById,
     loadAllProducts,
     pageOfProducts,
     addProduct,
-    queryProduct
+    queryProduct, addProductToList
 } = require('./products')
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
 
@@ -25,6 +25,9 @@ const uri = process.env.MONGODB;
 
 const app = express()
 const client = new MongoClient(uri)
+
+app.use(express.static('public'))
+app.use(express.json())
 
 // ------ INITIALIZATION ------
 let products = []
@@ -169,6 +172,27 @@ app.post('/lists/update/:uid/listIndex/:idx', (async (req, res, next) => {
     }
 }))
 
+app.post('/lists/add/:uid/product', (async (req, res, next) => {
+    try {
+        const uid = req.params['uid']
+        const body = req.body
+        console.log(`here: ${body}`)
+        const productId = body.productId
+        const listIdx = body.listIdx
+
+        addProductToList(client, uid, listIdx, productId).then(result => {
+            if (result.modifiedCount > 0) {
+                res.send({status: 200})
+            } else {
+                next({status: 400, message: "List not updated, invalid list type or same list"})
+            }
+        }).catch(next)
+    } catch (e) {
+        console.log(e)
+        next({status: 400, message: e.message})
+    }
+}))
+
 app.delete('/lists/delete/:uid/list/:id', (async (req, res, next) => {
     try {
         const uid = req.params['uid']
@@ -194,7 +218,7 @@ app.get('/products', (async (req, res, next) => {
 app.get('/products/id/:productId', (async (req, res, next) => {
     try {
         const productId = req.params['productId']
-        searchProductByName(client, productId).then(result => {
+        searchProductById(client, productId).then(result => {
             res.send(result)
         }).catch(next)
     } catch (e) {
@@ -278,9 +302,7 @@ process.on('exit', async () => {
     await client.close()
 })
 
-// ------ MIDDLEWARE ------ (ERROR MIDDLEWARE MUST BE AT BOTTOM OF APP.JS)
-app.use(express.static('public'))
-app.use(express.json())
+// ------ MIDDLEWARE ------ (ERROR HANDLING MIDDLEWARE MUST BE AT BOTTOM OF APP.JS)
 app.use(function (err, req, res, next) {
     console.error(err);
     if (err.message !== undefined) {
