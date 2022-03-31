@@ -26,14 +26,12 @@ const uri = process.env.MONGODB;
 const app = express()
 const client = new MongoClient(uri)
 
-
+// ------ INITIALIZATION ------
 let products = []
 initializeApp({
     credential: admin.credential.cert(serviceAccount), projectId: process.env.FBProjectID,
 });
 
-app.use(express.static('public'))
-app.use(express.json())
 app.listen(port, async () => {
     listAllUsers()
     runMongoConnection().then(async () => {
@@ -44,81 +42,92 @@ app.listen(port, async () => {
 
 // ------ USER -------
 app.get('/', (req, res) => {
-    res.send({"status": 200, "message": 'Hello From Bazarra'})
+    res.send({status: 200, message: 'Hello From Bazarra'})
 })
 
-app.get('/validEmail/:email', (req, res) => {
-    let email = req.params.email
-
-    getAuth()
-        .getUserByEmail(email)
-        .then((person) => {
-            res.send({
-                "status": 200, "user": person.toJSON()
+app.get('/validEmail/:email', (req, res, next) => {
+    try {
+        let email = req.params.email
+        getAuth()
+            .getUserByEmail(email)
+            .then((person) => {
+                res.send({
+                    status: 200, user: person.toJSON()
+                })
             })
-        })
-        .catch(() => {
-            console.log(`invalid email: ${email}`)
-            res.send({"status": 400, "message": "invalid email"})
-        });
+            .catch(() => {
+                console.log(`invalid email: ${email}`)
+                next({status: 404, message: "invalid email"})
+            });
+    } catch (e) {
+        next({status: 400, message: e.message})
+    }
 })
 
-app.get('/validToken/:idToken', (req, res) => {
-    let idToken = req.params.idToken
-    let checkRevoked = true;
+app.get('/validToken/:idToken', (req, res, next) => {
+    try {
+        let idToken = req.params.idToken
+        let checkRevoked = true;
 
-    getAuth()
-        .verifyIdToken(idToken, checkRevoked)
-        .then((decodedToken) => {
-            const uid = decodedToken.uid
-            console.log("valid token")
-            res.send({"status": 200, "tokenState": true, "uid": uid})
-        })
-        .catch((error) => {
-            if (error.code === 'auth/id-token-revoked') {
-                console.log("force reauthenticate on client")
-                res.send({"status": 200, "tokenState": false})
-            } else {
-                console.log("token does not exist")
-                res.send({"status": 400, "message": "token does not exist"})
-            }
-        });
+        getAuth()
+            .verifyIdToken(idToken, checkRevoked)
+            .then((decodedToken) => {
+                const uid = decodedToken.uid
+                console.log("valid token")
+                res.send({"status": 200, tokenState: true, "uid": uid})
+            })
+            .catch((error) => {
+                if (error.code === 'auth/id-token-revoked') {
+                    console.log("force reauthenticate on client")
+                    res.send({status: 401, tokenState: false})
+                } else {
+                    console.log("token does not exist")
+                    next({status: 404, message: "token does not exist"})
+                }
+            });
+    } catch (e) {
+        next({status: 400, message: e.message})
+    }
 })
 
-app.get('/revoke/:uid', (req, res) => {
-    let uid = req.params.uid
-
-    getAuth()
-        .revokeRefreshTokens(uid)
-        .then(() => {
-            return getAuth().getUser(uid);
-        })
-        .then((userRecord) => {
-            return new Date(userRecord.tokensValidAfterTime).getTime() / 1000;
-        })
-        .then((timestamp) => {
-            console.log(`Token revoked at: ${timestamp}`);
-            res.send({"status": 200})
-        })
-        .catch(() => {
-            console.log("Failed to revoke token")
-            res.send({"status": 400, "message": "Failed to revoke token, does not exist"})
-        })
+app.get('/revoke/:uid', (req, res, next) => {
+    try {
+        let uid = req.params.uid
+        getAuth()
+            .revokeRefreshTokens(uid)
+            .then(() => {
+                return getAuth().getUser(uid);
+            })
+            .then((userRecord) => {
+                return new Date(userRecord.tokensValidAfterTime).getTime() / 1000;
+            })
+            .then((timestamp) => {
+                console.log(`Token revoked at: ${timestamp}`);
+                res.send({status: 200})
+            })
+            .catch(() => {
+                console.log("Failed to revoke token")
+                next({status: 404, message: "Failed to revoke token, does not exist"})
+            })
+    } catch (e) {
+        next({status: 400, message: e.message})
+    }
 })
 
 
 // -------- LISTS -----------
-app.get('/lists/:uid', (async (req, res) => {
-    let uid = req.params.uid
-    await findUser(client, uid).then(user => {
-        res.send(user.listCollection)
-    }).catch(reason => {
-        console.log(reason)
-        res.send({status: 400, "message": reason.message})
-    })
+app.get('/lists/:uid', (async (req, res, next) => {
+    try {
+        let uid = req.params.uid
+        findUser(client, uid).then(user => {
+            res.send(user.listCollection)
+        }).catch(next)
+    } catch (e) {
+        next({status: 400, message: e.message})
+    }
 }))
 
-app.post('/lists/add/:uid', (async (req, res) => {
+app.post('/lists/add/:uid', (async (req, res, next) => {
     try {
         const id = req.params.uid
         const body = req.body
@@ -126,23 +135,18 @@ app.post('/lists/add/:uid', (async (req, res) => {
         // if valid body request format
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
             const list = {id: new ObjectId().toHexString(), body}
-            await listManagement(client, id, ADD_LIST, {list: list}).then(() => {
+            listManagement(client, id, ADD_LIST, {list: list}).then(() => {
                 res.sendStatus(200)
-            }).catch((e) => {
-                console.log(e)
-                res.send(400)
-            })
+            }).catch(next)
         } else {
-            console.log(`INVALID REQUEST BODY USER: ${id} => ${body}`)
-            res.send({status: 400, message: `INVALID REQUEST BODY USER: ${id} => ${body}`})
+            next({status: 400, message: `INVALID REQUEST BODY USER: ${id} => ${body}`})
         }
     } catch (e) {
-        console.log(e)
-        res.send({status: 400, "message": e.message})
+        next({status: 400, message: "invalid uid"})
     }
 }))
 
-app.post('/lists/update/:uid/listIndex/:idx', (async (req, res) => {
+app.post('/lists/update/:uid/listIndex/:idx', (async (req, res, next) => {
     try {
         const id = req.params['uid']
         const idx = req.params['idx']
@@ -154,123 +158,82 @@ app.post('/lists/update/:uid/listIndex/:idx', (async (req, res) => {
                 if (result.modifiedCount > 0) {
                     res.send({status: 200})
                 } else {
-                    res.send({status: 400, "message": "List not updated, invalid list type or same list"})
+                    next({status: 400, message: "List not updated, invalid list type or same list"})
                 }
-            }).catch((e) => {
-                console.log(e)
-                res.send({status: 400, "message": e.message})
-            })
-
+            }).catch(next)
         } else {
-            console.log(`INVALID REQUEST BODY USER: ${id} => ${body}`)
-            res.send({status: 400, message: `INVALID REQUEST BODY USER: ${id} => ${body}`})
+            next({status: 400, message: `INVALID REQUEST BODY USER: ${id} => ${body}`})
         }
-
     } catch (e) {
-        console.log(e)
-        res.send({status: 400, "message": e.message})
+        next({status: 400, message: e.message})
     }
 }))
 
-app.delete('/lists/delete/:uid/list/:id', (async (req, res) => {
+app.delete('/lists/delete/:uid/list/:id', (async (req, res, next) => {
     try {
         const uid = req.params['uid']
         const listId = req.params['id']
         listManagement(client, uid, REMOVE_LIST, {listId: listId}).then((result) => {
             if (result.modifiedCount > 0) {
-                res.sendStatus(200)
+                res.send({status: 200})
             } else {
-                res.send({status: 400, "message": "List not removed, invalid list type or same list"})
+                next({status: 400, message: "List not removed, invalid list type or same list"})
             }
-        }).catch((e) => {
-            console.log(e)
-            res.send({status: 400, "message": e.message})
-        })
-
+        }).catch(next)
     } catch (e) {
-        console.log(e)
-        res.send({status: 400, "message": e.message})
+        next({status: 400, message: e.message})
     }
 }))
 
 // ----- PRODUCTS -----
-app.get('/products', (async (req, res) => {
+app.get('/products', (async (req, res, next) => {
     loadAllProducts(client).then(result => {
         res.send(result)
-    }).catch(e => {
-        console.log(e)
-        res.send({status: 400, "message": e.message})
-    })
+    }).catch(next)
 }))
-app.get('/products/id/:productId', (async (req, res) => {
+app.get('/products/id/:productId', (async (req, res, next) => {
     try {
         const productId = req.params['productId']
         searchProductByName(client, productId).then(result => {
             res.send(result)
-        }).catch(e => {
-            console.log(e)
-            res.send({status: 400, "message": e.message})
-        })
+        }).catch(next)
     } catch (e) {
-        console.log(e)
-        res.send({status: 400, "message": e.message})
+        next({status: 400, message: e.message})
     }
 }))
 
-app.get('/products/suggest', (async (req, res) => {
+app.get('/products/suggest', (async (req, res, next) => {
     try {
         const prefix = req.query.prefix
         await productSuggestByName(client, prefix).then(result => {
-            res.send(result)
-        }).catch(e => {
-            console.log(e)
-            res.send({status: 400, "message": e.message})
-        })
+            res.send({status: 200, message: result})
+        }).catch(next)
     } catch (e) {
-        console.log(e.message)
-        res.send({status: 400, "message": e.message})
+        next({status: 400, message: e.message})
     }
 }))
 
-
-app.get('/products/default/:page', (async (req, res) => {
+app.get('/products/default/:page', ((req, res, next) => {
     try {
         const page = req.params['page']
         let result = pageOfProducts(page, products)
-        res.send({status: 400, "message": result.message})
+        if (result === -1) next({status: 404})
+        else res.send({status: 200, message: result})
     } catch (e) {
-        console.log(e)
-        res.send({status: 400, "message": e.message})
+        next({status: 400, message: e.message})
     }
 }))
 
-app.get('/products/search', (async (req, res) => {
-    try {
-        console.log("connected")
-        queryProduct(client, req.query).then(result => {
-            res.send({status: 200, query: result})
-        }).catch(e => {
-            console.log(e)
-            res.send(400)
-        })
-    } catch (e) {
-        console.log(e.message)
-        res.send({status: 400, "message": e.message})
-    }
+app.get('/products/search', (async (req, res, next) => {
+    queryProduct(client, req.query).then(result => {
+        res.send({status: 200, query: result})
+    }).catch(next)
 }))
 
-app.post('/products/add', async (req, res) => {
-    try {
-        addProduct(client, req.body).then(() => {
-            res.send({status: 200})
-        }).catch(e => {
-            console.log(e.message)
-            res.send({status: 400, "message": e.message})
-        })
-    } catch (e) {
-        console.log(e.message)
-        res.send({status: 400, "message": e.message})
-    }
+app.post('/products/add', async (req, res, next) => {
+    addProduct(client, req.body).then(() => {
+        res.send({status: 200})
+    }).catch(next)
 })
 
 async function logDatabaseConnections(client) {
@@ -314,3 +277,15 @@ const listAllUsers = (nextPageToken) => {
 process.on('exit', async () => {
     await client.close()
 })
+
+// ------ MIDDLEWARE ------ (ERROR MIDDLEWARE MUST BE AT BOTTOM OF APP.JS)
+app.use(express.static('public'))
+app.use(express.json())
+app.use(function (err, req, res, next) {
+    console.error(err);
+    if (err.message !== undefined) {
+        res.send({status: 400, message: err.message})
+    } else {
+        res.send({status: 400, message: "Invalid request format"})
+    }
+});
