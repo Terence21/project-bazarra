@@ -8,7 +8,7 @@ const admin = require('firebase-admin')
 const serviceAccount = require("./bazaara-342116-firebase-adminsdk-bazyf-419376ebb8.json");
 
 const {
-    users, findUser, findOrCreateUser, listManagement
+    findUser, findOrCreateUser, listManagement
 } = require("./lists");
 const {
     productSuggestByName,
@@ -19,6 +19,7 @@ const {
     queryProduct, addProductToList, removeProductFromList
 } = require('./products')
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
+const {typeValidator, updateLocation} = require("./home");
 
 const port = process.env.PORT
 const uri = process.env.MONGODB;
@@ -275,6 +276,21 @@ app.post('/products/add', async (req, res, next) => {
     }).catch(next)
 })
 
+// ---------- USERS -----------------
+app.post('/user/location', (req, res, next) => {
+    const body = req.body
+    const lat = body['latitude']
+    const lon = body['longitude']
+    const userId = body['uid']
+    if (typeValidator({"number": [lat, lon], "string": [userId]})) {
+        updateLocation(client, lat, lon, userId).then(() => {
+            res.send({status: 200, message: "user location updated"})
+        }).catch(next)
+    } else {
+        res.send({status: 400, message: "invalid request body"})
+    }
+})
+
 async function logDatabaseConnections(client) {
     let databaseConnections = await client.db().admin().listDatabases()
 
@@ -303,14 +319,9 @@ const listAllUsers = (nextPageToken) => {
             if (listUsersResult.pageToken) {
                 listAllUsers(listUsersResult.pageToken)
             }
-        })
-        .then(() => {
-            // users array stored in lists.js
-            console.log(users)
-        })
-        .catch((error) => {
-            console.log('Error listing users:', error);
-        });
+        }).catch((error) => {
+        console.log('Error fetching users:', error);
+    });
 };
 
 process.on('exit', async () => {
