@@ -12,8 +12,6 @@ const {
 } = require("./globals");
 const {ObjectId} = require("mongodb");
 
-const users = []
-
 async function findUid(tokenId) {
     return getAuth()
         .verifyIdToken(tokenId)
@@ -36,9 +34,7 @@ async function findCollection(client) {
 
 async function findUser(client, id) {
     return await findCollection(client).then(async () => {
-        let user = await client.db(USER_DB).collection(USER_COLLECTION).findOne({'uid': id})
-        users.push(user)
-        return user
+        return await client.db(USER_DB).collection(USER_COLLECTION).findOne({'uid': id})
     })
 }
 
@@ -50,8 +46,25 @@ async function findOrCreateUser(client, id) {
                 'uid': id,
                 latitude: null,
                 longitude: null,
+                yearlySavings: 0.00,
+                monthlySavings: 0.00,
+                weeklySavings: 0.00,
                 'listCollection': []
+            }).then(() => {
+                let listPromises = [];
+                ["breakfast", "lunch", "dinner"].forEach((label => {
+                    listPromises.push(listManagement(client, id, ADD_LIST, {
+                        list: {
+                            label: label,
+                            timestamp: new Date().getDate(),
+                            savings: 0.00,
+                            products: []
+                        }
+                    }))
+                }))
+                Promise.all(listPromises).catch((e) => console.log(e))
             })
+
         }
         return await findUser(client, id)
     })
@@ -75,7 +88,12 @@ async function listManagement(client, user_id, type, req) {
         }
         case ADD_PRODUCT_LIST : {
             body.query = {uid: user_id, [`listCollection.${req.idx}`]: {$exists: true}}
-            body.document = {$push: {[`listCollection.${req.idx}.body.products`]: req.body}}
+            body.document = {
+                $push: {
+                    [`listCollection.${req.idx}.products`]: req.body
+                },
+                $set: {[`listCollection.${req.idx}.savings`]: req.originalSavings + req.body.price}
+            }
             break
         }
         case REMOVE_LIST : {
@@ -83,7 +101,11 @@ async function listManagement(client, user_id, type, req) {
             break
         }
         case REMOVE_PRODUCT_LIST: {
-            body.document = {$pull: {[`listCollection.${req.idx}.body.products`]: {_id: ObjectId(req.productId)}}}
+            console.log(`old: ${req.originalSavings}, pp: ${req.productPrice}`)
+            body.document = {
+                $pull: {[`listCollection.${req.idx}.products`]: {_id: ObjectId(req.productId)}},
+                $set: {[`listCollection.${req.idx}.savings`]: req.originalSavings - req.productPrice}
+            }
             break
         }
         default : {
@@ -100,9 +122,15 @@ async function listManagement(client, user_id, type, req) {
     })
 }
 
+async function getPreviousListPrice(client, uid, listIdx) {
+    return findUser(client, uid).then(user => {
+        console.log(user)
+        return user['listCollection'][`${listIdx}`]['savings']
+    })
+}
+
 exports.findUid = findUid
 exports.findUser = findUser
 exports.findOrCreateUser = findOrCreateUser
 exports.listManagement = listManagement
-
-exports.users = users
+exports.getPreviousListPrice = getPreviousListPrice
