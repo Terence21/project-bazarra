@@ -10,6 +10,7 @@ const {
     ADD_PRODUCT_LIST,
     REMOVE_PRODUCT_LIST
 } = require("./globals");
+
 const {ObjectId} = require("mongodb")
 const {PriorityQueue} = require("@datastructures-js/priority-queue")
 
@@ -42,7 +43,7 @@ async function findUser(client, id) {
 async function findOrCreateUser(client, id) {
     return await findCollection(client).then(async (collection) => {
         if (await collection.countDocuments({uid: id}) === 0) {
-            console.log(`added USER: ${id}`)
+            // console.log(`added USER: ${id}`)
             await client.db(USER_DB).collection(USER_COLLECTION).insertOne({
                 'uid': id,
                 latitude: null,
@@ -101,7 +102,6 @@ async function listManagement(client, user_id, type, req) {
             break
         }
         case REMOVE_PRODUCT_LIST: {
-            console.log(`old: ${req.originalSavings}, pp: ${req.productPrice}`)
             body.document = {
                 $pull: {[`listCollection.${req.idx}.products`]: {_id: ObjectId(req.productId)}},
                 $set: {[`listCollection.${req.idx}.savings`]: req.originalSavings - req.productPrice}
@@ -117,21 +117,19 @@ async function listManagement(client, user_id, type, req) {
         body.document,
         body.options
     ).then(result => {
-        console.log(result)
+        // console.log(result)
         return result
     })
 }
 
 async function getPreviousListPrice(client, uid, listIdx) {
     return findUser(client, uid).then(user => {
-        console.log(user)
         return user['listCollection'][`${listIdx}`]['savings']
     })
 }
 
 async function getTop3Lists(client, uid) {
     return await findUser(client, uid).then((user) => {
-        console.log(`user: ${user}`)
         const compareLists = (a, b) => {
             if (a['savings'] !== null)
                 return b['savings'] - a['savings']
@@ -150,9 +148,23 @@ async function getTop3Lists(client, uid) {
     })
 }
 
+async function getSavings(client, uid) {
+    return await findUser(client, uid).then((user) => {
+        if (user == null) throw new Error("uid cannot be found")
+        return {
+            savings: {
+                weekly: user['weeklySavings'],
+                monthly: user['monthlySavings'],
+                yearly: user['yearlySavings']
+            }
+        }
+    })
+}
+
 exports.findUid = findUid
 exports.findUser = findUser
 exports.findOrCreateUser = findOrCreateUser
 exports.listManagement = listManagement
 exports.getPreviousListPrice = getPreviousListPrice
 exports.getTop3Lists = getTop3Lists
+exports.getSavings = getSavings
