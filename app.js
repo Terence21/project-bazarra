@@ -331,7 +331,7 @@ const listAllUsers = (nextPageToken) => {
             if (listUsersResult.pageToken) {
                 listAllUsers(listUsersResult.pageToken)
             }
-            console.log(listUsersResult)
+            // console.log(listUsersResult)
         }).catch((error) => {
         console.log('Error fetching users:', error);
     });
