@@ -1,5 +1,6 @@
 require('dotenv').config()
 const express = require('express')
+const cors = require('cors');
 const {MongoClient, ObjectId} = require("mongodb")
 
 const {initializeApp} = require('firebase-admin/app')
@@ -29,6 +30,8 @@ const client = new MongoClient(uri)
 
 app.use(express.static('public'))
 app.use(express.json())
+cors({credentials: true, origin: true})
+app.use(cors())
 
 // ------ INITIALIZATION ------
 let products = []
@@ -124,7 +127,7 @@ app.get('/lists/:uid', (async (req, res, next) => {
     try {
         let uid = req.params.uid
         findUser(client, uid).then(user => {
-            res.send(user.listCollection)
+            res.send({status: 200, message: user.listCollection})
         }).catch(next)
     } catch (e) {
         next({status: 400, message: e.message})
@@ -287,11 +290,11 @@ app.post('/products/add', async (req, res, next) => {
 })
 
 // ---------- USERS -----------------
-app.post('/user/location', (req, res, next) => {
+app.post('/user/:uid/location', (req, res, next) => {
     const body = req.body
     const lat = body['latitude']
     const lon = body['longitude']
-    const userId = body['uid']
+    const userId = req.params['uid']
     if (typeValidator({"number": [lat, lon], "string": [userId]})) {
         updateLocation(client, lat, lon, userId).then(() => {
             res.send({status: 200, message: "user location updated"})
