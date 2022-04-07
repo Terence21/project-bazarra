@@ -59,7 +59,7 @@ app.get('/validEmail/:email', (req, res, next) => {
             .getUserByEmail(email)
             .then((person) => {
                 res.send({
-                    status: 200, user: person.toJSON()
+                    status: 200, message: person.toJSON()
                 })
             })
             .catch(() => {
@@ -81,12 +81,12 @@ app.get('/validToken/:idToken', (req, res, next) => {
             .then((decodedToken) => {
                 const uid = decodedToken.uid
                 console.log("valid token")
-                res.send({"status": 200, tokenState: true, "uid": uid})
+                res.send({status: 200, tokenState: true, uid: uid, message: "idToken valid"})
             })
             .catch((error) => {
                 if (error.code === 'auth/id-token-revoked') {
                     console.log("force reauthenticate on client")
-                    res.send({status: 401, tokenState: false})
+                    res.send({status: 401, tokenState: false, message: "force reauthenticate on client"})
                 } else {
                     console.log("token does not exist")
                     next({status: 404, message: "token does not exist"})
@@ -110,7 +110,7 @@ app.get('/revoke/:uid', (req, res, next) => {
             })
             .then((timestamp) => {
                 console.log(`Token revoked at: ${timestamp}`);
-                res.send({status: 200})
+                res.send({status: 200, message: "token revoked for user"})
             })
             .catch(() => {
                 console.log("Failed to revoke token")
@@ -143,7 +143,7 @@ app.post('/lists/add/:uid', (async (req, res, next) => {
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
             const list = {id: new ObjectId().toHexString(), body}
             listManagement(client, id, ADD_LIST, {list: list}).then(() => {
-                res.sendStatus(200)
+                res.send({status: 200, message: "list added"})
             }).catch(next)
         } else {
             next({status: 400, message: `INVALID REQUEST BODY USER: ${id} => ${body}`})
@@ -163,7 +163,7 @@ app.post('/lists/update/:uid/listIndex/:idx', (async (req, res, next) => {
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
             await listManagement(client, id, UPDATE_LIST, {idx: idx, body: body}).then((result) => {
                 if (result.modifiedCount > 0) {
-                    res.send({status: 200})
+                    res.send({status: 200, message: "list updated"})
                 } else {
                     next({status: 400, message: "List not updated, invalid list type or same list"})
                 }
@@ -185,7 +185,7 @@ app.post('/lists/add/:uid/product', (async (req, res, next) => {
 
         addProductToList(client, uid, listIdx, productId).then(result => {
             if (result.modifiedCount > 0) {
-                res.send({status: 200})
+                res.send({status: 200, message: "product added to list"})
             } else {
                 next({status: 400, message: "List not updated, invalid list/product type or same list/product"})
             }
@@ -201,7 +201,7 @@ app.delete('/lists/delete/:uid/product', (async (req, res, next) => {
         const body = req.body
         removeProductFromList(client, uid, body['listIdx'], body['productId']).then(result => {
             if (result.modifiedCount > 0) {
-                res.send({status: 200})
+                res.send({status: 200, message: "product removed from list"})
             } else {
                 next({status: 400, message: "List not updated, invalid list/product type or same list/product"})
             }
@@ -218,7 +218,7 @@ app.delete('/lists/delete/:uid/list/:id', (async (req, res, next) => {
         const listId = req.params['id']
         listManagement(client, uid, REMOVE_LIST, {listId: listId}).then((result) => {
             if (result.modifiedCount > 0) {
-                res.send({status: 200})
+                res.send({status: 200, message: "list removed"})
             } else {
                 next({status: 400, message: "List not removed, invalid list type or same list"})
             }
@@ -248,7 +248,7 @@ app.get('/products/id/:productId', (async (req, res, next) => {
     try {
         const productId = req.params['productId']
         searchProductById(client, productId).then(result => {
-            res.send(result)
+            res.send({status: 200, message: result})
         }).catch(next)
     } catch (e) {
         next({status: 400, message: e.message})
@@ -270,7 +270,7 @@ app.get('/products/default/:page', ((req, res, next) => {
     try {
         const page = req.params['page']
         let result = pageOfProducts(page, products)
-        if (result === -1) next({status: 404})
+        if (result === -1) next({status: 404, message: "invalid page"})
         else res.send({status: 200, message: result})
     } catch (e) {
         next({status: 400, message: e.message})
@@ -285,7 +285,7 @@ app.get('/products/search', (async (req, res, next) => {
 
 app.post('/products/add', async (req, res, next) => {
     addProduct(client, req.body).then(() => {
-        res.send({status: 200})
+        res.send({status: 200, message: "product added"})
     }).catch(next)
 })
 
