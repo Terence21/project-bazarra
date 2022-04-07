@@ -1,5 +1,6 @@
 require('dotenv').config()
 const express = require('express')
+const cors = require('cors');
 const {MongoClient, ObjectId} = require("mongodb")
 
 const {initializeApp} = require('firebase-admin/app')
@@ -8,8 +9,8 @@ const admin = require('firebase-admin')
 const serviceAccount = require("./bazaara-342116-firebase-adminsdk-bazyf-419376ebb8.json");
 
 const {
-    users, findUser, findOrCreateUser, listManagement
-} = require("./lists");
+    findUser, findOrCreateUser, listManagement, getTop3Lists
+} = require("./lists.js");
 const {
     productSuggestByName,
     searchProductById,
@@ -19,6 +20,7 @@ const {
     queryProduct, addProductToList, removeProductFromList
 } = require('./products')
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
+const {typeValidator, updateLocation} = require("./home");
 
 const port = process.env.PORT
 const uri = process.env.MONGODB;
@@ -28,6 +30,8 @@ const client = new MongoClient(uri)
 
 app.use(express.static('public'))
 app.use(express.json())
+cors({credentials: true, origin: true})
+app.use(cors())
 
 // ------ INITIALIZATION ------
 let products = []
@@ -44,6 +48,32 @@ app.listen(port, async () => {
 })
 
 // ------ USER -------
+app.use((req, res, next) => {
+    const idToken = req.headers['authorization']
+    try {
+        let checkRevoked = true;
+        // comments left for local debugging
+        getAuth()
+            .verifyIdToken(idToken, checkRevoked)
+            .then(async (decodedToken) => {
+                const uid = decodedToken.uid
+                await findOrCreateUser(client, uid).then(() => next())
+                // console.log(`valid token for user: ${uid}`)
+            })
+            .catch((error) => {
+                if (error.code === 'auth/id-token-revoked') {
+                    // console.log("force reauthenticate on client")
+                    res.send({status: 401, tokenState: false, message: "force reauthenticate on client"})
+                } else {
+                    // console.log("token does not exist")
+                    next({status: 404, message: "token does not exist"})
+                }
+            });
+    } catch (e) {
+        next({status: 400, message: "check invalid header for authorization and idToken"})
+    }
+})
+
 app.get('/', (req, res) => {
     res.send({status: 200, message: 'Hello From Bazarra'})
 })
@@ -55,38 +85,12 @@ app.get('/validEmail/:email', (req, res, next) => {
             .getUserByEmail(email)
             .then((person) => {
                 res.send({
-                    status: 200, user: person.toJSON()
+                    status: 200, message: person.toJSON()
                 })
             })
             .catch(() => {
                 console.log(`invalid email: ${email}`)
                 next({status: 404, message: "invalid email"})
-            });
-    } catch (e) {
-        next({status: 400, message: e.message})
-    }
-})
-
-app.get('/validToken/:idToken', (req, res, next) => {
-    try {
-        let idToken = req.params.idToken
-        let checkRevoked = true;
-
-        getAuth()
-            .verifyIdToken(idToken, checkRevoked)
-            .then((decodedToken) => {
-                const uid = decodedToken.uid
-                console.log("valid token")
-                res.send({"status": 200, tokenState: true, "uid": uid})
-            })
-            .catch((error) => {
-                if (error.code === 'auth/id-token-revoked') {
-                    console.log("force reauthenticate on client")
-                    res.send({status: 401, tokenState: false})
-                } else {
-                    console.log("token does not exist")
-                    next({status: 404, message: "token does not exist"})
-                }
             });
     } catch (e) {
         next({status: 400, message: e.message})
@@ -106,7 +110,7 @@ app.get('/revoke/:uid', (req, res, next) => {
             })
             .then((timestamp) => {
                 console.log(`Token revoked at: ${timestamp}`);
-                res.send({status: 200})
+                res.send({status: 200, message: "token revoked for user"})
             })
             .catch(() => {
                 console.log("Failed to revoke token")
@@ -123,7 +127,7 @@ app.get('/lists/:uid', (async (req, res, next) => {
     try {
         let uid = req.params.uid
         findUser(client, uid).then(user => {
-            res.send(user.listCollection)
+            res.send({status: 200, message: user.listCollection})
         }).catch(next)
     } catch (e) {
         next({status: 400, message: e.message})
@@ -137,9 +141,8 @@ app.post('/lists/add/:uid', (async (req, res, next) => {
 
         // if valid body request format
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
-            const list = {id: new ObjectId().toHexString(), body}
-            listManagement(client, id, ADD_LIST, {list: list}).then(() => {
-                res.sendStatus(200)
+            listManagement(client, id, ADD_LIST, {id: new ObjectId().toHexString(), list: body}).then(() => {
+                res.send({status: 200, message: "list added"})
             }).catch(next)
         } else {
             next({status: 400, message: `INVALID REQUEST BODY USER: ${id} => ${body}`})
@@ -159,9 +162,9 @@ app.post('/lists/update/:uid/listIndex/:idx', (async (req, res, next) => {
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
             await listManagement(client, id, UPDATE_LIST, {idx: idx, body: body}).then((result) => {
                 if (result.modifiedCount > 0) {
-                    res.send({status: 200})
+                    res.send({status: 200, message: "list updated"})
                 } else {
-                    next({status: 400, message: "List not updated, invalid list type or same list"})
+                    next({status: 404, message: "List not updated, invalid list type or same list"})
                 }
             }).catch(next)
         } else {
@@ -181,9 +184,9 @@ app.post('/lists/add/:uid/product', (async (req, res, next) => {
 
         addProductToList(client, uid, listIdx, productId).then(result => {
             if (result.modifiedCount > 0) {
-                res.send({status: 200})
+                res.send({status: 200, message: "product added to list"})
             } else {
-                next({status: 400, message: "List not updated, invalid list/product type or same list/product"})
+                next({status: 404, message: "List not updated, invalid list/product type or same list/product"})
             }
         }).catch(next)
     } catch (e) {
@@ -197,9 +200,9 @@ app.delete('/lists/delete/:uid/product', (async (req, res, next) => {
         const body = req.body
         removeProductFromList(client, uid, body['listIdx'], body['productId']).then(result => {
             if (result.modifiedCount > 0) {
-                res.send({status: 200})
+                res.send({status: 200, message: "product removed from list"})
             } else {
-                next({status: 400, message: "List not updated, invalid list/product type or same list/product"})
+                next({status: 404, message: "List not updated, invalid list/product type or same list/product"})
             }
         }).catch(next)
     } catch (e) {
@@ -214,15 +217,25 @@ app.delete('/lists/delete/:uid/list/:id', (async (req, res, next) => {
         const listId = req.params['id']
         listManagement(client, uid, REMOVE_LIST, {listId: listId}).then((result) => {
             if (result.modifiedCount > 0) {
-                res.send({status: 200})
+                res.send({status: 200, message: "list removed"})
             } else {
-                next({status: 400, message: "List not removed, invalid list type or same list"})
+                next({status: 404, message: "List not removed, invalid list type or same list"})
             }
         }).catch(next)
     } catch (e) {
         next({status: 400, message: e.message})
     }
 }))
+
+app.get('/lists/top3/:uid', (req, res, next) => {
+    try {
+        getTop3Lists(client, req.params['uid']).then(result => {
+            res.send({status: 200, message: {top3Lists: result}})
+        }).catch(next)
+    } catch (e) {
+        next({status: 400, message: e.message})
+    }
+})
 
 // ----- PRODUCTS -----
 app.get('/products', (async (req, res, next) => {
@@ -234,7 +247,7 @@ app.get('/products/id/:productId', (async (req, res, next) => {
     try {
         const productId = req.params['productId']
         searchProductById(client, productId).then(result => {
-            res.send(result)
+            res.send({status: 200, message: result})
         }).catch(next)
     } catch (e) {
         next({status: 400, message: e.message})
@@ -256,7 +269,7 @@ app.get('/products/default/:page', ((req, res, next) => {
     try {
         const page = req.params['page']
         let result = pageOfProducts(page, products)
-        if (result === -1) next({status: 404})
+        if (result === -1) next({status: 404, message: "invalid page"})
         else res.send({status: 200, message: result})
     } catch (e) {
         next({status: 400, message: e.message})
@@ -271,8 +284,23 @@ app.get('/products/search', (async (req, res, next) => {
 
 app.post('/products/add', async (req, res, next) => {
     addProduct(client, req.body).then(() => {
-        res.send({status: 200})
+        res.send({status: 200, message: "product added"})
     }).catch(next)
+})
+
+// ---------- USERS -----------------
+app.post('/user/:uid/location', (req, res, next) => {
+    const body = req.body
+    const lat = body['latitude']
+    const lon = body['longitude']
+    const userId = req.params['uid']
+    if (typeValidator({"number": [lat, lon], "string": [userId]})) {
+        updateLocation(client, lat, lon, userId).then(() => {
+            res.send({status: 200, message: "user location updated"})
+        }).catch(next)
+    } else {
+        res.send({status: 400, message: "invalid request body"})
+    }
 })
 
 async function logDatabaseConnections(client) {
@@ -303,14 +331,10 @@ const listAllUsers = (nextPageToken) => {
             if (listUsersResult.pageToken) {
                 listAllUsers(listUsersResult.pageToken)
             }
-        })
-        .then(() => {
-            // users array stored in lists.js
-            console.log(users)
-        })
-        .catch((error) => {
-            console.log('Error listing users:', error);
-        });
+            console.log(listUsersResult)
+        }).catch((error) => {
+        console.log('Error fetching users:', error);
+    });
 };
 
 process.on('exit', async () => {

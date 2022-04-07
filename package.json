@@ -4,7 +4,8 @@
   "description": "Just initializing node",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
   },
   "repository": {
     "type": "git",
@@ -17,9 +18,12 @@
   },
   "homepage": "https://github.com/Capstone-Projects-2022-Spring/project-bazarra#readme",
   "dependencies": {
+    "@datastructures-js/priority-queue": "^6.0.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
     "firebase-admin": "^10.0.2",
+    "js-priority-queue": "^0.1.5",
     "mongodb": "^4.4.1"
   }
 }
