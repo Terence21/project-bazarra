@@ -165,7 +165,7 @@ app.post('/lists/update/:uid/listIndex/:idx', (async (req, res, next) => {
                 if (result.modifiedCount > 0) {
                     res.send({status: 200, message: "list updated"})
                 } else {
-                    next({status: 400, message: "List not updated, invalid list type or same list"})
+                    next({status: 404, message: "List not updated, invalid list type or same list"})
                 }
             }).catch(next)
         } else {
@@ -187,7 +187,7 @@ app.post('/lists/add/:uid/product', (async (req, res, next) => {
             if (result.modifiedCount > 0) {
                 res.send({status: 200, message: "product added to list"})
             } else {
-                next({status: 400, message: "List not updated, invalid list/product type or same list/product"})
+                next({status: 404, message: "List not updated, invalid list/product type or same list/product"})
             }
         }).catch(next)
     } catch (e) {
@@ -203,7 +203,7 @@ app.delete('/lists/delete/:uid/product', (async (req, res, next) => {
             if (result.modifiedCount > 0) {
                 res.send({status: 200, message: "product removed from list"})
             } else {
-                next({status: 400, message: "List not updated, invalid list/product type or same list/product"})
+                next({status: 404, message: "List not updated, invalid list/product type or same list/product"})
             }
         }).catch(next)
     } catch (e) {
@@ -220,7 +220,7 @@ app.delete('/lists/delete/:uid/list/:id', (async (req, res, next) => {
             if (result.modifiedCount > 0) {
                 res.send({status: 200, message: "list removed"})
             } else {
-                next({status: 400, message: "List not removed, invalid list type or same list"})
+                next({status: 404, message: "List not removed, invalid list type or same list"})
             }
         }).catch(next)
     } catch (e) {
