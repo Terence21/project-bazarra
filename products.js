@@ -1,6 +1,6 @@
 const {PRODUCTS_DB, PRODUCTS_COLLECTION, ADD_LIST, ADD_PRODUCT_LIST, REMOVE_PRODUCT_LIST} = require('./globals')
 const {ObjectId} = require("mongodb");
-const {listManagement, getPreviousListPrice} = require("./lists");
+const {listManagement, getPreviousListPrice} = require("./lists.js");
 const PRODUCT_INCREMENT = 200
 const PRODUCT_MAX = 1000
 const INCREMENT_MAX = (PRODUCT_MAX / PRODUCT_INCREMENT) - 1

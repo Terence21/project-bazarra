@@ -10,7 +10,8 @@ const {
     ADD_PRODUCT_LIST,
     REMOVE_PRODUCT_LIST
 } = require("./globals");
-const {ObjectId} = require("mongodb");
+const {ObjectId} = require("mongodb")
+const {PriorityQueue} = require("@datastructures-js/priority-queue")
 
 async function findUid(tokenId) {
     return getAuth()
@@ -78,7 +79,7 @@ async function listManagement(client, user_id, type, req) {
     }
     switch (type) {
         case ADD_LIST : {
-            body.document = {$push: {listCollection: req.list}}
+            body.document = {$push: {listCollection: req.list.body}}
             break
         }
         case UPDATE_LIST : {
@@ -129,8 +130,30 @@ async function getPreviousListPrice(client, uid, listIdx) {
     })
 }
 
+async function getTop3Lists(client, uid) {
+    return await findUser(client, uid).then((user) => {
+        console.log(`user: ${user}`)
+        const compareLists = (a, b) => {
+            if (a['savings'] !== null)
+                return b['savings'] - a['savings']
+        }
+        const pq = new PriorityQueue(compareLists)
+        user['listCollection'].forEach((list) => {
+            pq.enqueue(list)
+
+        })
+        let top3Lists = []
+        const len = (pq.size() >= 3) ? 3 : pq.size()
+        for (let i = 0; i < len; i++) {
+            top3Lists.push(pq.dequeue())
+        }
+        return top3Lists
+    })
+}
+
 exports.findUid = findUid
 exports.findUser = findUser
 exports.findOrCreateUser = findOrCreateUser
 exports.listManagement = listManagement
 exports.getPreviousListPrice = getPreviousListPrice
+exports.getTop3Lists = getTop3Lists

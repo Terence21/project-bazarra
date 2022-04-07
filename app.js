@@ -8,8 +8,8 @@ const admin = require('firebase-admin')
 const serviceAccount = require("./bazaara-342116-firebase-adminsdk-bazyf-419376ebb8.json");
 
 const {
-    findUser, findOrCreateUser, listManagement
-} = require("./lists");
+    findUser, findOrCreateUser, listManagement, getTop3Lists
+} = require("./lists.js");
 const {
     productSuggestByName,
     searchProductById,
@@ -225,6 +225,16 @@ app.delete('/lists/delete/:uid/list/:id', (async (req, res, next) => {
     }
 }))
 
+app.get('/lists/top3/:uid', (req, res, next) => {
+    try {
+        getTop3Lists(client, req.params['uid']).then(result => {
+            res.send({status: 200, message: {top3Lists: result}})
+        }).catch(next)
+    } catch (e) {
+        next({status: 400, message: e.message})
+    }
+})
+
 // ----- PRODUCTS -----
 app.get('/products', (async (req, res, next) => {
     loadAllProducts(client).then(result => {
@@ -319,6 +329,7 @@ const listAllUsers = (nextPageToken) => {
             if (listUsersResult.pageToken) {
                 listAllUsers(listUsersResult.pageToken)
             }
+            console.log(listUsersResult)
         }).catch((error) => {
         console.log('Error fetching users:', error);
     });
