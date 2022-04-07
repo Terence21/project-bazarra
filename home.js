@@ -2,7 +2,7 @@ const {USER_DB, USER_COLLECTION} = require("./globals");
 
 async function updateLocation(client, lat, lon, userId) {
     const collection = client.db(USER_DB).collection(USER_COLLECTION)
-    collection.updateOne({uid: userId}, {$set: {latitude: lat, longitude: lon}})
+    return collection.updateOne({uid: userId}, {$set: {latitude: lat, longitude: lon}})
 }
 
 function typeValidator(types) {

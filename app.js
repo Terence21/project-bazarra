@@ -21,6 +21,7 @@ const {
 } = require('./products')
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
 const {typeValidator, updateLocation} = require("./home");
+const {getSavings} = require("./lists");
 
 const port = process.env.PORT
 const uri = process.env.MONGODB;
@@ -240,7 +241,7 @@ app.get('/lists/top3/:uid', (req, res, next) => {
 // ----- PRODUCTS -----
 app.get('/products', (async (req, res, next) => {
     loadAllProducts(client).then(result => {
-        res.send(result)
+        res.send({status: 200, message: result})
     }).catch(next)
 }))
 app.get('/products/id/:productId', (async (req, res, next) => {
@@ -278,7 +279,7 @@ app.get('/products/default/:page', ((req, res, next) => {
 
 app.get('/products/search', (async (req, res, next) => {
     queryProduct(client, req.query).then(result => {
-        res.send({status: 200, query: result})
+        res.send({status: 200, message: result})
     }).catch(next)
 }))
 
@@ -295,12 +296,22 @@ app.post('/user/:uid/location', (req, res, next) => {
     const lon = body['longitude']
     const userId = req.params['uid']
     if (typeValidator({"number": [lat, lon], "string": [userId]})) {
-        updateLocation(client, lat, lon, userId).then(() => {
-            res.send({status: 200, message: "user location updated"})
+        updateLocation(client, lat, lon, userId).then((result) => {
+            if (result['matchedCount'] === 0) {
+                res.send({status: 404, message: "no user with uid found"})
+            } else {
+                res.send({status: 200, message: "user location updated"})
+            }
         }).catch(next)
     } else {
         res.send({status: 400, message: "invalid request body"})
     }
+})
+
+app.get('/user/:uid/savings', (req, res, next) => {
+    getSavings(client, req.params['uid']).then(result => {
+        res.send({status: 200, message: result})
+    }).catch(next)
 })
 
 async function logDatabaseConnections(client) {
@@ -343,7 +354,6 @@ process.on('exit', async () => {
 
 // ------ MIDDLEWARE ------ (ERROR HANDLING MIDDLEWARE MUST BE AT BOTTOM OF APP.JS)
 app.use(function (err, req, res, next) {
-    console.error(err);
     if (err.message !== undefined) {
         res.send({status: 400, message: err.message})
     } else {

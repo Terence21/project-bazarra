@@ -10,6 +10,7 @@ const {
     ADD_PRODUCT_LIST,
     REMOVE_PRODUCT_LIST
 } = require("./globals");
+1
 const {ObjectId} = require("mongodb")
 const {PriorityQueue} = require("@datastructures-js/priority-queue")
 
@@ -147,9 +148,23 @@ async function getTop3Lists(client, uid) {
     })
 }
 
+async function getSavings(client, uid) {
+    return await findUser(client, uid).then((user) => {
+        if (user == null) throw new Error("uid cannot be found")
+        return {
+            savings: {
+                weekly: user['weeklySavings'],
+                monthly: user['monthlySavings'],
+                yearly: user['yearlySavings']
+            }
+        }
+    })
+}
+
 exports.findUid = findUid
 exports.findUser = findUser
 exports.findOrCreateUser = findOrCreateUser
 exports.listManagement = listManagement
 exports.getPreviousListPrice = getPreviousListPrice
 exports.getTop3Lists = getTop3Lists
+exports.getSavings = getSavings
