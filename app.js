@@ -48,6 +48,32 @@ app.listen(port, async () => {
 })
 
 // ------ USER -------
+app.use((req, res, next) => {
+    const idToken = req.headers['authorization']
+    try {
+        let checkRevoked = true;
+        // comments left for local debugging
+        getAuth()
+            .verifyIdToken(idToken, checkRevoked)
+            .then(async (decodedToken) => {
+                const uid = decodedToken.uid
+                await findOrCreateUser(client, uid).then(() => next())
+                // console.log(`valid token for user: ${uid}`)
+            })
+            .catch((error) => {
+                if (error.code === 'auth/id-token-revoked') {
+                    // console.log("force reauthenticate on client")
+                    res.send({status: 401, tokenState: false, message: "force reauthenticate on client"})
+                } else {
+                    // console.log("token does not exist")
+                    next({status: 404, message: "token does not exist"})
+                }
+            });
+    } catch (e) {
+        next({status: 400, message: "check invalid header for authorization and idToken"})
+    }
+})
+
 app.get('/', (req, res) => {
     res.send({status: 200, message: 'Hello From Bazarra'})
 })
@@ -65,32 +91,6 @@ app.get('/validEmail/:email', (req, res, next) => {
             .catch(() => {
                 console.log(`invalid email: ${email}`)
                 next({status: 404, message: "invalid email"})
-            });
-    } catch (e) {
-        next({status: 400, message: e.message})
-    }
-})
-
-app.get('/validToken/:idToken', (req, res, next) => {
-    try {
-        let idToken = req.params.idToken
-        let checkRevoked = true;
-
-        getAuth()
-            .verifyIdToken(idToken, checkRevoked)
-            .then((decodedToken) => {
-                const uid = decodedToken.uid
-                console.log("valid token")
-                res.send({status: 200, tokenState: true, uid: uid, message: "idToken valid"})
-            })
-            .catch((error) => {
-                if (error.code === 'auth/id-token-revoked') {
-                    console.log("force reauthenticate on client")
-                    res.send({status: 401, tokenState: false, message: "force reauthenticate on client"})
-                } else {
-                    console.log("token does not exist")
-                    next({status: 404, message: "token does not exist"})
-                }
             });
     } catch (e) {
         next({status: 400, message: e.message})
@@ -141,8 +141,7 @@ app.post('/lists/add/:uid', (async (req, res, next) => {
 
         // if valid body request format
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
-            const list = {id: new ObjectId().toHexString(), body}
-            listManagement(client, id, ADD_LIST, {list: list}).then(() => {
+            listManagement(client, id, ADD_LIST, {id: new ObjectId().toHexString(), list: body}).then(() => {
                 res.send({status: 200, message: "list added"})
             }).catch(next)
         } else {

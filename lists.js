@@ -51,16 +51,15 @@ async function findOrCreateUser(client, id) {
                 monthlySavings: 0.00,
                 weeklySavings: 0.00,
                 'listCollection': []
-            }).then(() => {
+            }).then(async () => {
                 let listPromises = [];
-                ["breakfast", "lunch", "dinner"].forEach((label => {
-                    listPromises.push(listManagement(client, id, ADD_LIST, {
-                        list: {
-                            label: label,
-                            timestamp: new Date().getDate(),
-                            savings: 0.00,
-                            products: []
-                        }
+                ["breakfast", "lunch", "dinner"].forEach((async label => {
+                    listPromises.push(await listManagement(client, id, ADD_LIST, {
+                        id: new ObjectId().toHexString(),
+                        label: label,
+                        timestamp: new Date().getDate(),
+                        savings: 0.00,
+                        products: []
                     }))
                 }))
                 Promise.all(listPromises).catch((e) => console.log(e))
@@ -79,7 +78,7 @@ async function listManagement(client, user_id, type, req) {
     }
     switch (type) {
         case ADD_LIST : {
-            body.document = {$push: {listCollection: req.list.body}}
+            body.document = {$push: {listCollection: req}}
             break
         }
         case UPDATE_LIST : {
