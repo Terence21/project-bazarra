@@ -10,7 +10,7 @@ const {
     ADD_PRODUCT_LIST,
     REMOVE_PRODUCT_LIST
 } = require("./globals");
-1
+
 const {ObjectId} = require("mongodb")
 const {PriorityQueue} = require("@datastructures-js/priority-queue")
 
