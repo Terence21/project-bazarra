@@ -139,10 +139,10 @@ app.post('/lists/add/:uid', (async (req, res, next) => {
     try {
         const id = req.params.uid
         const body = req.body
-
+        body.id = new ObjectId().toHexString()
         // if valid body request format
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
-            listManagement(client, id, ADD_LIST, {id: new ObjectId().toHexString(), list: body}).then(() => {
+            listManagement(client, id, ADD_LIST, body).then(() => {
                 res.send({status: 200, message: "list added"})
             }).catch(next)
         } else {
@@ -158,14 +158,14 @@ app.post('/lists/update/:uid/listIndex/:idx', (async (req, res, next) => {
         const id = req.params['uid']
         const idx = req.params['idx']
         const body = req.body
-
+        body.id = new ObjectId().toHexString()
         // if valid body request format
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
             await listManagement(client, id, UPDATE_LIST, {idx: idx, body: body}).then((result) => {
                 if (result.modifiedCount > 0) {
                     res.send({status: 200, message: "list updated"})
                 } else {
-                    next({status: 404, message: "List not updated, invalid list type or same list"})
+                    next({status: 404, message: "List not updated, invalid list type, list idx or same list"})
                 }
             }).catch(next)
         } else {

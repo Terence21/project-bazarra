@@ -84,7 +84,7 @@ async function listManagement(client, user_id, type, req) {
         }
         case UPDATE_LIST : {
             body.query = {uid: user_id, [`listCollection.${req.idx}`]: {$exists: true}}
-            body.document = {$set: {[`listCollection.${req.idx}.body`]: req.body}}
+            body.document = {$set: {[`listCollection.${req.idx}`]: req.body}}
             break
         }
         case ADD_PRODUCT_LIST : {
