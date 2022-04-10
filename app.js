@@ -19,7 +19,7 @@ const {
     addProduct,
     queryProduct, addProductToList, removeProductFromList
 } = require('./products')
-const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
+const {ADD_LIST, REMOVE_LIST, UPDATE_LIST, UPDATE_LIST_NAME} = require('./globals')
 const {typeValidator, updateLocation} = require("./home");
 const {getSavings} = require("./lists");
 
@@ -152,6 +152,29 @@ app.post('/lists/add/:uid', (async (req, res, next) => {
         next({status: 400, message: "invalid uid"})
     }
 }))
+
+app.post('/lists/update/:uid/listIndex/:idx/label', (req, res, next) => {
+    try {
+        const uid = req.params['uid']
+        const idx = req.params['idx']
+        const body = req.body
+
+        if ((typeValidator({"number": [idx], "string": [uid, body['label']]}))) {
+            listManagement(client, uid, UPDATE_LIST_NAME, {idx: idx, label: body['label']}).then(result => {
+                console.log(result)
+                if (result['matchedCount'] === 0) {
+                    res.send({status: 404, message: `list ${idx} for user ${uid} could not be found`})
+                }else {
+                    res.send({status: 200, message: `list name changed to: ${body['label']}`})
+                }
+            }).catch(next)
+        } else {
+            next({status: 400, message: "invalid request body types"})
+        }
+    } catch (e) {
+        next({status: 404, message: "invalid request, could not be found"})
+    }
+})
 
 app.post('/lists/update/:uid/listIndex/:idx', (async (req, res, next) => {
     try {
