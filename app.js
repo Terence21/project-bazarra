@@ -195,7 +195,7 @@ app.post('/lists/add/:uid/product', (async (req, res, next) => {
     }
 }))
 
-app.delete('/lists/delete/:uid/product', (async (req, res, next) => {
+app.post('/lists/delete/:uid/product', (async (req, res, next) => {
     try {
         const uid = req.params['uid']
         const body = req.body
