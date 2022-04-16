@@ -164,7 +164,7 @@ app.post('/lists/update/:uid/listIndex/:idx/label', (req, res, next) => {
                 console.log(result)
                 if (result['matchedCount'] === 0) {
                     res.send({status: 404, message: `list ${idx} for user ${uid} could not be found`})
-                }else {
+                } else {
                     res.send({status: 200, message: `list name changed to: ${body['label']}`})
                 }
             }).catch(next)
