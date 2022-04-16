@@ -302,7 +302,14 @@ app.get('/products/default/:page', ((req, res, next) => {
 
 app.get('/products/search', (async (req, res, next) => {
     queryProduct(client, req.query).then(result => {
-        res.send({status: 200, message: result})
+        res.send({
+            status: 200,
+            message: result['result_arr'],
+            total: result['total'],
+            lower: result['lower_bound'],
+            upper: result['upper_bound'],
+            page_size: result['page_size'],
+        })
     }).catch(next)
 }))
 
