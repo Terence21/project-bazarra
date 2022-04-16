@@ -85,7 +85,42 @@ async function queryProduct(client, query) {
     if (query.hasOwnProperty("price")) builder.price = parseFloat(query.price)
     if (query.hasOwnProperty("store")) builder["store.name"] = {$regex: query.store}
     if (query.hasOwnProperty("upc_code")) builder.upc_code = parseInt(query.upc_code)
-    return await client.db(PRODUCTS_DB).collection(PRODUCTS_COLLECTION).find(builder).toArray()
+    let result_arr = await client.db(PRODUCTS_DB).collection(PRODUCTS_COLLECTION).find(builder).toArray()
+    if (query.hasOwnProperty("sort") && query.hasOwnProperty("order")) {
+        result_arr = sortArrayByColumn(await result_arr, query['sort'])
+        if (parseInt(query['order']) === 1) result_arr = await result_arr.reverse()
+    }
+    return result_arr
+}
+
+function sortArrayByColumn(array, field) {
+    switch (field) {
+        case "name" : {
+            array.sort((a, b) => {
+                return a.name.localeCompare(b['name'])
+            })
+            break
+        }
+        case "price": {
+            array.sort((a, b) => {
+                return a.price - b.price
+            })
+            break
+        }
+        case "store": {
+            array.sort((a, b) => {
+                return a['store']['name'].localeCompare(b['store']['name'])
+            })
+            break
+        }
+        case "upc_code" : {
+            array.sort((a, b) => {
+                return a['upc_code'] > b['upc_code']
+            })
+            break
+        }
+    }
+    return array
 }
 
 function validListProduct(user_id, listIdx, productId) {
