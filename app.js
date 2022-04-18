@@ -319,6 +319,17 @@ app.post('/products/add', async (req, res, next) => {
     }).catch(next)
 })
 
+app.post('/products/barcode/add', (req, res, next) => {
+    const body = req['body']
+    const upc = body['upc_code']
+    const price = body['price']
+    if (typeValidator({"number": [upc, price]})) {
+        res.send({status: {message: "Thank you for contributing to our dataset!!"}})
+    } else {
+        next({status: 400, message: "invalid request body"})
+    }
+})
+
 // ---------- USERS -----------------
 app.post('/user/:uid/location', (req, res, next) => {
     const body = req.body
