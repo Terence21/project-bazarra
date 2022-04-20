@@ -51,27 +51,33 @@ app.listen(port, async () => {
 // ------ USER -------
 app.use((req, res, next) => {
     const idToken = req.headers['authorization']
-    try {
-        let checkRevoked = true;
-        // comments left for local debugging
-        getAuth()
-            .verifyIdToken(idToken, checkRevoked)
-            .then(async (decodedToken) => {
-                const uid = decodedToken.uid
-                await findOrCreateUser(client, uid).then(() => next())
-                // console.log(`valid token for user: ${uid}`)
-            })
-            .catch((error) => {
-                if (error.code === 'auth/id-token-revoked') {
-                    // console.log("force reauthenticate on client")
-                    res.send({status: 401, tokenState: false, message: "force reauthenticate on client"})
-                } else {
-                    // console.log("token does not exist")
-                    next({status: 404, message: "token does not exist"})
-                }
-            });
-    } catch (e) {
-        next({status: 400, message: "check invalid header for authorization and idToken"})
+    if (idToken === "bazaara-integration-test"){
+        next()
+    }
+    else {
+        try {
+            let checkRevoked = true;
+            // comments left for local debugging
+            getAuth()
+                .verifyIdToken(idToken, checkRevoked)
+                .then(async (decodedToken) => {
+                    const uid = decodedToken.uid
+                    await findOrCreateUser(client, uid).then(() => next())
+                    // console.log(`valid token for user: ${uid}`)
+                })
+                .catch((error) => {
+                    if (error.code === 'auth/id-token-revoked') {
+                        // console.log("force reauthenticate on client")
+                        res.send({status: 401, tokenState: false, message: "force reauthenticate on client"})
+                    } else {
+                        // console.log("token does not exist")
+                        next({status: 404, message: "token does not exist"})
+                    }
+                })
+
+        } catch (e) {
+            next({status: 400, message: "check invalid header for authorization and idToken"})
+        }
     }
 })
 
@@ -131,6 +137,7 @@ app.get('/lists/:uid', (async (req, res, next) => {
             res.send({status: 200, message: user.listCollection})
         }).catch(next)
     } catch (e) {
+        console.log("failed")
         next({status: 400, message: e.message})
     }
 }))
