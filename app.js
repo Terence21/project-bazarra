@@ -323,8 +323,8 @@ app.post('/products/barcode/add', (req, res, next) => {
     const body = req['body']
     const upc = body['upc_code']
     const price = body['price']
-    if (typeValidator({"number": [upc, price]})) {
-        res.send({status: {message: "Thank you for contributing to our dataset!!"}})
+    if (typeValidator({"number": [price]})) {
+        res.send({status: 200, message: "Thank you for contributing to our dataset!!"})
     } else {
         next({status: 400, message: "invalid request body"})
     }
