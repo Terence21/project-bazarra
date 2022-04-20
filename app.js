@@ -197,7 +197,7 @@ app.post('/lists/update/:uid/listIndex/:idx/selected', (req, res, next) => {
                     message: `product ${productId}, for list ${idx}, for user ${uid} could not be found`
                 })
             } else {
-                res.send({status: 200, message: "Thank you for saving with Bazaaras"})
+                res.send({status: 200, message: "Thank you for saving with Bazaara"})
             }
         }).catch(next)
     } else {

@@ -98,7 +98,7 @@ async function listManagement(client, user_id, type, req) {
                 $push: {
                     [`listCollection.${req.idx}.products`]: req.body
                 },
-                $set: {[`listCollection.${req.idx}.savings`]: req.originalSavings + req.body.price}
+                $set: {[`listCollection.${req.idx}.savings`]: Number((req.originalSavings + req.body.price).toFixed(2))}
             }
             break
         }
@@ -114,7 +114,7 @@ async function listManagement(client, user_id, type, req) {
         case REMOVE_PRODUCT_LIST: {
             body.document = {
                 $pull: {[`listCollection.${req.idx}.products`]: {_id: ObjectId(req.productId)}},
-                $set: {[`listCollection.${req.idx}.savings`]: req.originalSavings - req.productPrice}
+                $set: {[`listCollection.${req.idx}.savings`]: Number((req.originalSavings - req.productPrice).toFixed(2))}
             }
             break
         }
