@@ -24,6 +24,7 @@
     "express": "^4.17.3",
     "firebase-admin": "^10.0.2",
     "js-priority-queue": "^0.1.5",
-    "mongodb": "^4.4.1"
+    "mongodb": "^4.4.1",
+    "newman": "^5.3.2"
   }
 }
