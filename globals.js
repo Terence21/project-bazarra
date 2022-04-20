@@ -7,7 +7,8 @@ const UPDATE_LIST = "updateList"
 const UPDATE_LIST_NAME = "updateListName"
 const REMOVE_LIST = "removeList"
 const ADD_PRODUCT_LIST = "addProductList"
-REMOVE_PRODUCT_LIST = "removeProductList"
+const LIST_PRODUCT_SELECTED = "listProductSelected"
+const REMOVE_PRODUCT_LIST = "removeProductList"
 
 
 // MONGODB GLOBALS
@@ -21,6 +22,7 @@ exports.UPDATE_LIST = UPDATE_LIST
 exports.UPDATE_LIST_NAME = UPDATE_LIST_NAME
 exports.REMOVE_LIST = REMOVE_LIST
 exports.ADD_PRODUCT_LIST = ADD_PRODUCT_LIST
+exports.LIST_PRODUCT_SELECTED = LIST_PRODUCT_SELECTED
 exports.REMOVE_PRODUCT_LIST = REMOVE_PRODUCT_LIST
 
 exports.USER_DB = USER_DB

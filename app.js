@@ -19,7 +19,7 @@ const {
     addProduct,
     queryProduct, addProductToList, removeProductFromList
 } = require('./products')
-const {ADD_LIST, REMOVE_LIST, UPDATE_LIST, UPDATE_LIST_NAME} = require('./globals')
+const {ADD_LIST, REMOVE_LIST, UPDATE_LIST, UPDATE_LIST_NAME, LIST_PRODUCT_SELECTED} = require('./globals')
 const {typeValidator, updateLocation} = require("./home");
 const {getSavings} = require("./lists");
 
@@ -51,10 +51,9 @@ app.listen(port, async () => {
 // ------ USER -------
 app.use((req, res, next) => {
     const idToken = req.headers['authorization']
-    if (idToken === "bazaara-integration-test"){
+    if (idToken === "bazaara-integration-test") {
         next()
-    }
-    else {
+    } else {
         try {
             let checkRevoked = true;
             // comments left for local debugging
@@ -180,6 +179,21 @@ app.post('/lists/update/:uid/listIndex/:idx/label', (req, res, next) => {
         }
     } catch (e) {
         next({status: 404, message: "invalid request, could not be found"})
+    }
+})
+
+
+app.post('/lists/update/:uid/listIndex/:idx/selected', (req, res, next) => {
+    const body = req['body']
+    const uid = req.params['uid']
+    const idx = req.params['idx']
+    const productId = body['productId']
+    if (typeValidator({"string": [productId]})) {
+        listManagement(client, uid, LIST_PRODUCT_SELECTED, {idx: idx, product: productId}).then(result => {
+            res.send({status: 200, message: "Thank you for saving with Bazaara"})
+        }).catch(next)
+    } else {
+        next({status: 400, message: "invalid request body"})
     }
 })
 
@@ -333,17 +347,6 @@ app.post('/products/barcode/add', (req, res, next) => {
     if (typeValidator({"number": [price]})) {
         res.send({status: 200, message: "Thank you for contributing to our dataset!!"})
     } else {
-        next({status: 400, message: "invalid request body"})
-    }
-})
-
-app.post('/lists/{id}', (req, res, next) => {
-    const body = req['body']
-    const productId = body['productId']
-    if (typeValidator({"string": [productId]})){
-
-        res.send({status:200, message: "Thank you for saving with Bazaara"})
-    }else{
         next({status: 400, message: "invalid request body"})
     }
 })

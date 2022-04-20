@@ -8,7 +8,7 @@ const {
     USER_DB,
     USER_COLLECTION,
     ADD_PRODUCT_LIST,
-    REMOVE_PRODUCT_LIST, UPDATE_LIST_NAME
+    REMOVE_PRODUCT_LIST, UPDATE_LIST_NAME, LIST_PRODUCT_SELECTED
 } = require("./globals");
 
 const {ObjectId} = require("mongodb")
@@ -106,6 +106,11 @@ async function listManagement(client, user_id, type, req) {
             body.document = {$pull: {listCollection: {id: req.listId}}}
             break
         }
+        case LIST_PRODUCT_SELECTED : {
+            body.query = {uid: user_id, [`listCollection.${req.idx}.products._id`]: ObjectId(req['product'])}
+            body.document = {$set: {[`listCollection.${req.idx}.products.$.purchased`]: true}}
+            break
+        }
         case REMOVE_PRODUCT_LIST: {
             body.document = {
                 $pull: {[`listCollection.${req.idx}.products`]: {_id: ObjectId(req.productId)}},
@@ -122,7 +127,8 @@ async function listManagement(client, user_id, type, req) {
         body.document,
         body.options
     ).then(result => {
-        // console.log(result)
+        console.log(result)
+
         return result
     })
 }
