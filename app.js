@@ -337,6 +337,17 @@ app.post('/products/barcode/add', (req, res, next) => {
     }
 })
 
+app.post('/lists/{id}', (req, res, next) => {
+    const body = req['body']
+    const productId = body['productId']
+    if (typeValidator({"string": [productId]})){
+
+        res.send({status:200, message: "Thank you for saving with Bazaara"})
+    }else{
+        next({status: 400, message: "invalid request body"})
+    }
+})
+
 // ---------- USERS -----------------
 app.post('/user/:uid/location', (req, res, next) => {
     const body = req.body

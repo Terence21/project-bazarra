@@ -48,6 +48,7 @@ async function addProduct(client, body) {
 async function addProductToList(client, user_id, listIdx, productId) {
     if (validListProduct(user_id, listIdx, productId)) {
         let product = await searchProductById(client, productId)
+        product['purchased'] = false
         if (product === null) throw new Error("Product DNE")
         return await getPreviousListPrice(client, user_id, listIdx).then((price) => listManagement(client, user_id, ADD_PRODUCT_LIST, {
             idx: listIdx,
