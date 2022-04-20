@@ -1,0 +1,32 @@
+on:
+  pull_request:
+    branches:
+      - master
+
+- name: Newman Action
+  uses: matt-ball/newman-action@v1.0.4
+
+jobs:
+  server-lists-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: matt-ball/newman-action@master
+        with:
+          collection: https://www.getpostman.com/collections/a226f0029ed5cdb5d569
+
+  server-product-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: matt-ball/newman-action@master
+        with:
+          collection: https://www.getpostman.com/collections/65fa4fac226afa7ac877
+
+  server-user-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: matt-ball/newman-action@master
+        with:
+          collection: https://www.getpostman.com/collections/4d70a07e5fbe085fa977

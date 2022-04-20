@@ -1,8 +1,9 @@
-const {PRODUCTS_DB, PRODUCTS_COLLECTION, ADD_LIST, ADD_PRODUCT_LIST, REMOVE_PRODUCT_LIST} = require('./globals')
+const {PRODUCTS_DB, PRODUCTS_COLLECTION, ADD_PRODUCT_LIST, REMOVE_PRODUCT_LIST} = require('./globals')
 const {ObjectId} = require("mongodb");
 const {listManagement, getPreviousListPrice} = require("./lists.js");
-const PRODUCT_INCREMENT = 15
-const PRODUCT_MAX = 200
+const {distanceToStore, getLastLocation} = require("./home");
+const PRODUCT_INCREMENT = 200
+const PRODUCT_MAX = 1000
 const INCREMENT_MAX = (PRODUCT_MAX / PRODUCT_INCREMENT) - 1
 
 async function loadAllProducts(client) {
@@ -15,7 +16,7 @@ async function loadAllProducts(client) {
 
 function pageOfProducts(page, arr) {
     if (page < 1 || page > INCREMENT_MAX) return -1
-    return arr.slice((PRODUCT_INCREMENT * (page - 1)), (PRODUCT_INCREMENT * page) - 1)
+    return arr.slice((PRODUCT_INCREMENT * (page - 1)), (PRODUCT_INCREMENT * page))
 }
 
 async function productSuggestByName(client, label) {
@@ -85,7 +86,75 @@ async function queryProduct(client, query) {
     if (query.hasOwnProperty("price")) builder.price = parseFloat(query.price)
     if (query.hasOwnProperty("store")) builder["store.name"] = {$regex: query.store}
     if (query.hasOwnProperty("upc_code")) builder.upc_code = parseInt(query.upc_code)
-    return await client.db(PRODUCTS_DB).collection(PRODUCTS_COLLECTION).find(builder).toArray()
+    let result_arr = await client.db(PRODUCTS_DB).collection(PRODUCTS_COLLECTION).find(builder).toArray()
+    if (query.hasOwnProperty("sort") && query.hasOwnProperty("order")) {
+        if (query['sort'] === "location" && query.hasOwnProperty("uid")) {
+            result_arr = await getLastLocation(client, query['uid']).then(result => {
+                if (typeof (result) === "undefined") throw new Error("lat/lon not provided by client or cannot find user with uid")
+                return sortProductArrayByColumn(result_arr, "location", result)
+            })
+        } else {
+            result_arr = sortProductArrayByColumn(await result_arr, query['sort'])
+        }
+        if (parseInt(query['order']) === 1) result_arr = await result_arr.reverse()
+    }
+    const total_results = result_arr.length
+    let lower_bound = 0
+    let upper_bound = PRODUCT_INCREMENT
+    if (query.hasOwnProperty("page")) {
+        let page = query['page']
+        lower_bound = (PRODUCT_INCREMENT * (page - 1))
+        upper_bound = PRODUCT_INCREMENT * page
+        if (page < 1) throw new Error("page out of bounds")
+        result_arr = pageOfProducts(page, result_arr)
+    } else {
+        result_arr = pageOfProducts(1, result_arr)
+    }
+    return {
+        result_arr: result_arr,
+        total: total_results,
+        lower_bound: lower_bound,
+        upper_bound: upper_bound,
+        page_size: result_arr.length
+    }
+}
+
+function sortProductArrayByColumn(array, field, user) {
+    switch (field) {
+        case "name" : {
+            array.sort((a, b) => {
+                return a.name.localeCompare(b['name'])
+            })
+            break
+        }
+        case "price": {
+            array.sort((a, b) => {
+                return a.price - b.price
+            })
+            break
+        }
+        case "store": {
+            array.sort((a, b) => {
+                return a['store']['name'].localeCompare(b['store']['name'])
+            })
+            break
+        }
+        case "upc_code" : {
+            array.sort((a, b) => {
+                return a['upc_code'] > b['upc_code']
+            })
+            break
+        }
+        case "location" : {
+            array.sort((a, b) => {
+                const a_store = a['store']
+                const b_store = b['store']
+                return distanceToStore(a_store.latitude, a_store.longitude, user.latitude, user.longitude) -
+                    distanceToStore(b_store.latitude, b_store.longitude, user.latitude, user.longitude)
+            })
+        }
+    }
+    return array
 }
 
 function validListProduct(user_id, listIdx, productId) {

@@ -8,7 +8,7 @@ const {
     USER_DB,
     USER_COLLECTION,
     ADD_PRODUCT_LIST,
-    REMOVE_PRODUCT_LIST
+    REMOVE_PRODUCT_LIST, UPDATE_LIST_NAME
 } = require("./globals");
 
 const {ObjectId} = require("mongodb")
@@ -84,7 +84,12 @@ async function listManagement(client, user_id, type, req) {
         }
         case UPDATE_LIST : {
             body.query = {uid: user_id, [`listCollection.${req.idx}`]: {$exists: true}}
-            body.document = {$set: {[`listCollection.${req.idx}.body`]: req.body}}
+            body.document = {$set: {[`listCollection.${req.idx}`]: req.body}}
+            break
+        }
+        case UPDATE_LIST_NAME : {
+            body.query = {uid: user_id, [`listCollection.${req.idx}`]: {$exists: true}}
+            body.document = {$set: {[`listCollection.${req.idx}.label`]: req[`label`]}}
             break
         }
         case ADD_PRODUCT_LIST : {

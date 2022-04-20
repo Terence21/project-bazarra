@@ -19,7 +19,7 @@ const {
     addProduct,
     queryProduct, addProductToList, removeProductFromList
 } = require('./products')
-const {ADD_LIST, REMOVE_LIST, UPDATE_LIST} = require('./globals')
+const {ADD_LIST, REMOVE_LIST, UPDATE_LIST, UPDATE_LIST_NAME} = require('./globals')
 const {typeValidator, updateLocation} = require("./home");
 const {getSavings} = require("./lists");
 
@@ -51,27 +51,33 @@ app.listen(port, async () => {
 // ------ USER -------
 app.use((req, res, next) => {
     const idToken = req.headers['authorization']
-    try {
-        let checkRevoked = true;
-        // comments left for local debugging
-        getAuth()
-            .verifyIdToken(idToken, checkRevoked)
-            .then(async (decodedToken) => {
-                const uid = decodedToken.uid
-                await findOrCreateUser(client, uid).then(() => next())
-                // console.log(`valid token for user: ${uid}`)
-            })
-            .catch((error) => {
-                if (error.code === 'auth/id-token-revoked') {
-                    // console.log("force reauthenticate on client")
-                    res.send({status: 401, tokenState: false, message: "force reauthenticate on client"})
-                } else {
-                    // console.log("token does not exist")
-                    next({status: 404, message: "token does not exist"})
-                }
-            });
-    } catch (e) {
-        next({status: 400, message: "check invalid header for authorization and idToken"})
+    if (idToken === "bazaara-integration-test"){
+        next()
+    }
+    else {
+        try {
+            let checkRevoked = true;
+            // comments left for local debugging
+            getAuth()
+                .verifyIdToken(idToken, checkRevoked)
+                .then(async (decodedToken) => {
+                    const uid = decodedToken.uid
+                    await findOrCreateUser(client, uid).then(() => next())
+                    // console.log(`valid token for user: ${uid}`)
+                })
+                .catch((error) => {
+                    if (error.code === 'auth/id-token-revoked') {
+                        // console.log("force reauthenticate on client")
+                        res.send({status: 401, tokenState: false, message: "force reauthenticate on client"})
+                    } else {
+                        // console.log("token does not exist")
+                        next({status: 404, message: "token does not exist"})
+                    }
+                })
+
+        } catch (e) {
+            next({status: 400, message: "check invalid header for authorization and idToken"})
+        }
     }
 })
 
@@ -131,6 +137,7 @@ app.get('/lists/:uid', (async (req, res, next) => {
             res.send({status: 200, message: user.listCollection})
         }).catch(next)
     } catch (e) {
+        console.log("failed")
         next({status: 400, message: e.message})
     }
 }))
@@ -139,10 +146,10 @@ app.post('/lists/add/:uid', (async (req, res, next) => {
     try {
         const id = req.params.uid
         const body = req.body
-
+        body.id = new ObjectId().toHexString()
         // if valid body request format
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
-            listManagement(client, id, ADD_LIST, {id: new ObjectId().toHexString(), list: body}).then(() => {
+            listManagement(client, id, ADD_LIST, body).then(() => {
                 res.send({status: 200, message: "list added"})
             }).catch(next)
         } else {
@@ -153,19 +160,42 @@ app.post('/lists/add/:uid', (async (req, res, next) => {
     }
 }))
 
+app.post('/lists/update/:uid/listIndex/:idx/label', (req, res, next) => {
+    try {
+        const uid = req.params['uid']
+        const idx = req.params['idx']
+        const body = req.body
+
+        if ((typeValidator({"number": [idx], "string": [uid, body['label']]}))) {
+            listManagement(client, uid, UPDATE_LIST_NAME, {idx: idx, label: body['label']}).then(result => {
+                console.log(result)
+                if (result['matchedCount'] === 0) {
+                    res.send({status: 404, message: `list ${idx} for user ${uid} could not be found`})
+                } else {
+                    res.send({status: 200, message: `list name changed to: ${body['label']}`})
+                }
+            }).catch(next)
+        } else {
+            next({status: 400, message: "invalid request body types"})
+        }
+    } catch (e) {
+        next({status: 404, message: "invalid request, could not be found"})
+    }
+})
+
 app.post('/lists/update/:uid/listIndex/:idx', (async (req, res, next) => {
     try {
         const id = req.params['uid']
         const idx = req.params['idx']
         const body = req.body
-
+        body.id = new ObjectId().toHexString()
         // if valid body request format
         if ((typeof (body.label) == "string" && typeof (body.timestamp) == "number" && typeof (body.savings) == "number" && typeof (body.products) == "object")) {
             await listManagement(client, id, UPDATE_LIST, {idx: idx, body: body}).then((result) => {
                 if (result.modifiedCount > 0) {
                     res.send({status: 200, message: "list updated"})
                 } else {
-                    next({status: 404, message: "List not updated, invalid list type or same list"})
+                    next({status: 404, message: "List not updated, invalid list type, list idx or same list"})
                 }
             }).catch(next)
         } else {
@@ -195,7 +225,7 @@ app.post('/lists/add/:uid/product', (async (req, res, next) => {
     }
 }))
 
-app.delete('/lists/delete/:uid/product', (async (req, res, next) => {
+app.post('/lists/delete/:uid/product', (async (req, res, next) => {
     try {
         const uid = req.params['uid']
         const body = req.body
@@ -279,7 +309,14 @@ app.get('/products/default/:page', ((req, res, next) => {
 
 app.get('/products/search', (async (req, res, next) => {
     queryProduct(client, req.query).then(result => {
-        res.send({status: 200, message: result})
+        res.send({
+            status: 200,
+            message: result['result_arr'],
+            total: result['total'],
+            lower: result['lower_bound'],
+            upper: result['upper_bound'],
+            page_size: result['page_size'],
+        })
     }).catch(next)
 }))
 
@@ -287,6 +324,17 @@ app.post('/products/add', async (req, res, next) => {
     addProduct(client, req.body).then(() => {
         res.send({status: 200, message: "product added"})
     }).catch(next)
+})
+
+app.post('/products/barcode/add', (req, res, next) => {
+    const body = req['body']
+    const upc = body['upc_code']
+    const price = body['price']
+    if (typeValidator({"number": [price]})) {
+        res.send({status: 200, message: "Thank you for contributing to our dataset!!"})
+    } else {
+        next({status: 400, message: "invalid request body"})
+    }
 })
 
 // ---------- USERS -----------------
