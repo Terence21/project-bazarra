@@ -190,7 +190,15 @@ app.post('/lists/update/:uid/listIndex/:idx/selected', (req, res, next) => {
     const productId = body['productId']
     if (typeValidator({"string": [productId]})) {
         listManagement(client, uid, LIST_PRODUCT_SELECTED, {idx: idx, product: productId}).then(result => {
-            res.send({status: 200, message: "Thank you for saving with Bazaara"})
+            console.log(`matchedCount: ${result['matchedCount'] === 0}`)
+            if (result['matchedCount'] === 0) {
+                res.send({
+                    status: 404,
+                    message: `product ${productId}, for list ${idx}, for user ${uid} could not be found`
+                })
+            } else {
+                res.send({status: 200, message: "Thank you for saving with Bazaaras"})
+            }
         }).catch(next)
     } else {
         next({status: 400, message: "invalid request body"})
