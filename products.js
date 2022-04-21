@@ -150,8 +150,11 @@ function sortProductArrayByColumn(array, field, user) {
             array.sort((a, b) => {
                 const a_store = a['store']
                 const b_store = b['store']
-                return distanceToStore(a_store.latitude, a_store.longitude, user.latitude, user.longitude) -
-                    distanceToStore(b_store.latitude, b_store.longitude, user.latitude, user.longitude)
+                const miToKm = .621371
+                a['distance'] = Number((distanceToStore(a_store.latitude, a_store.longitude, user.latitude, user.longitude) * miToKm).toFixed(2))
+                b['distance'] = Number((distanceToStore(b_store.latitude, b_store.longitude, user.latitude, user.longitude) * miToKm).toFixed(2))
+                return a['distance'] -
+                    b['distance']
             })
         }
     }

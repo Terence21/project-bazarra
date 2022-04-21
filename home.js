@@ -28,6 +28,8 @@ function typeValidator(types) {
     }
 }
 
+// function in km
+// 1 mi -> 1.60934 km
 function distanceToStore(lat1, lon1, lat2, lon2) {
     const p = 0.017453292519943295;    // Math.PI / 180
     const c = Math.cos;
