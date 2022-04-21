@@ -14,6 +14,26 @@ async function loadAllProducts(client) {
     return results
 }
 
+async function getAverageOfUpc(client, upc) {
+    return findUpcProductsArray(client, upc).then(async results => {
+        let total = 0
+        let count = 0
+        for (let item in await results) {
+            console.log(results[item])
+            total += results[item]['price']
+            count++
+        }
+        console.log("total: ", total)
+        return total / count
+    })
+}
+
+async function findUpcProductsArray(client, upc) {
+    const collection = client.db(PRODUCTS_DB).collection(PRODUCTS_COLLECTION)
+    let cursor = await collection.find({upc_code: upc})
+    return cursor.toArray()
+}
+
 function pageOfProducts(page, arr) {
     if (page < 1 || page > INCREMENT_MAX) return -1
     return arr.slice((PRODUCT_INCREMENT * (page - 1)), (PRODUCT_INCREMENT * page))
@@ -166,12 +186,13 @@ function validListProduct(user_id, listIdx, productId) {
 }
 
 function validProduct(body) {
-    return (typeof (body['name']) == "string" && typeof (body['productId']) == "number" && typeof (body['upc_code']) == "number" && typeof (body['price']) == "number"
+    return (typeof (body['name']) == "string" && typeof (body['productId']) == "number" && (typeof (body['upc_code']) == "string" || typeof (body['upc_code']) == "number") && typeof (body['price']) == "number"
         && typeof (body['image_url']) == "string" && typeof (body['weight']) == "string"
         && typeof (body['store']) == "object" && typeof (body['store']['name']) == "string" && typeof (body['store']['latitude']) == "number" && typeof (body['store']['longitude']) == "number")
 }
 
 exports.productSuggestByName = productSuggestByName
+exports.getAverageOfUpc = getAverageOfUpc
 exports.searchProductById = searchProductById
 exports.loadAllProducts = loadAllProducts
 exports.pageOfProducts = pageOfProducts

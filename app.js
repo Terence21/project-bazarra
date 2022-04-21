@@ -17,10 +17,10 @@ const {
     loadAllProducts,
     pageOfProducts,
     addProduct,
-    queryProduct, addProductToList, removeProductFromList
+    queryProduct, addProductToList, removeProductFromList, getAverageOfUpc
 } = require('./products')
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST, UPDATE_LIST_NAME, LIST_PRODUCT_SELECTED} = require('./globals')
-const {typeValidator, updateLocation} = require("./home");
+const {typeValidator, updateLocation, updateSavings} = require("./home");
 const {getSavings} = require("./lists");
 const bodyParser = require("express");
 
@@ -183,13 +183,29 @@ app.post('/lists/update/:uid/listIndex/:idx/label', (req, res, next) => {
     }
 })
 
-
+/**
+ * grab all with upc code
+ * calculate average price
+ * weekly, monthly, yearly
+ * weekly savings
+ */
 app.post('/lists/update/:uid/listIndex/:idx/selected', (req, res, next) => {
     const body = req['body']
     const uid = req.params['uid']
     const idx = req.params['idx']
     const productId = body['productId']
-
+    console.log("calling")
+    searchProductById(client, productId).then(async result => {
+        const res_price = result['price']
+        console.log("performing")
+        return getAverageOfUpc(client, result['upc_code']).then(average => {
+            console.log('average: ',average)
+            return (res_price < average) ? average - res_price : 0
+        })
+    }).then(async savings => {
+        console.log(`savings: ${savings}` )
+         updateSavings(client, savings, uid).catch(e=> console.log(e))
+    })
     listManagement(client, uid, LIST_PRODUCT_SELECTED, {idx: idx, product: productId}).then(result => {
         console.log(`matchedCount: ${result['matchedCount'] === 0}`)
         if (result['matchedCount'] === 0) {
