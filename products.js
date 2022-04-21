@@ -33,6 +33,16 @@ async function findUpcProductsArray(client, upc) {
     return cursor.toArray()
 }
 
+async function updateProductPrice(client, upc, price) {
+    client.db(PRODUCTS_DB).collection(PRODUCTS_COLLECTION).updateOne(
+        {upc_code: upc},
+        {$set: {price: price}},
+        {upsert: false}
+    ).then(result => {
+        return result
+    })
+}
+
 function pageOfProducts(page, arr) {
     if (page < 1 || page > INCREMENT_MAX) return -1
     return arr.slice((PRODUCT_INCREMENT * (page - 1)), (PRODUCT_INCREMENT * page))
@@ -123,7 +133,6 @@ async function queryProduct(client, query) {
     await findUser(client, query['uid']).then(user => {
         console.log(user)
         if (typeof user['latitude'] !== null && typeof user['longitude'] !== null) {
-            console.log("running")
             for (let i = 0; i < result_arr.length; i++) {
                 const store = result_arr[i]['store']
                 result_arr[i]['distance'] = distanceToStore(store['latitude'], store['longitude'], user['latitude'], user['longitude'])
@@ -205,6 +214,7 @@ function validProduct(body) {
 }
 
 exports.productSuggestByName = productSuggestByName
+exports.findUpcProductsArray = findUpcProductsArray
 exports.getAverageOfUpc = getAverageOfUpc
 exports.searchProductById = searchProductById
 exports.loadAllProducts = loadAllProducts
@@ -213,3 +223,5 @@ exports.addProduct = addProduct
 exports.queryProduct = queryProduct
 exports.addProductToList = addProductToList
 exports.removeProductFromList = removeProductFromList
+exports.sortProductArrayByColumn = sortProductArrayByColumn
+exports.updateProductPrice = updateProductPrice

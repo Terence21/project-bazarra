@@ -17,7 +17,8 @@ const {
     loadAllProducts,
     pageOfProducts,
     addProduct,
-    queryProduct, addProductToList, removeProductFromList, getAverageOfUpc
+    queryProduct, addProductToList, removeProductFromList, getAverageOfUpc, findUpcProductsArray,
+    sortProductArrayByColumn, updateProductPrice
 } = require('./products')
 const {ADD_LIST, REMOVE_LIST, UPDATE_LIST, UPDATE_LIST_NAME, LIST_PRODUCT_SELECTED} = require('./globals')
 const {typeValidator, updateLocation, updateSavings} = require("./home");
@@ -349,7 +350,7 @@ app.get('/products/search', (async (req, res, next) => {
             upper: result['upper_bound'],
             page_size: result['page_size'],
         })
-    }).catch(e=> {
+    }).catch(e => {
         console.log(e)
         next()
     })
@@ -363,9 +364,16 @@ app.post('/products/add', async (req, res, next) => {
 
 app.post('/products/barcode/add', (req, res, next) => {
     const body = req['body']
-    const upc = body['upc_code']
-    const price = body['price']
+    const upc = String(body['upc_code'])
+    const price = Number(body['price'])
     if (typeValidator({"number": [price]})) {
+        findUpcProductsArray(client, upc).then(arr => {
+            if (arr.length === 1) {
+                updateProductPrice(client, upc, price).then(result => {
+                    console.log(result)
+                })
+            }
+        }).catch(next)
         res.send({status: 200, message: "Thank you for contributing to our dataset!!"})
     } else {
         next({status: 400, message: "invalid request body"})
