@@ -2,6 +2,7 @@ const {PRODUCTS_DB, PRODUCTS_COLLECTION, ADD_PRODUCT_LIST, REMOVE_PRODUCT_LIST} 
 const {ObjectId} = require("mongodb");
 const {listManagement, getPreviousListPrice} = require("./lists.js");
 const {distanceToStore, getLastLocation} = require("./home");
+const {findUser} = require("./lists");
 const PRODUCT_INCREMENT = 10
 const PRODUCT_MAX = 1000
 const INCREMENT_MAX = (PRODUCT_MAX / PRODUCT_INCREMENT) - 1
@@ -101,6 +102,7 @@ async function searchProductById(client, productId) {
 
 async function queryProduct(client, query) {
     const builder = {}
+    let dist_obj = {distance: 0}
     if (query.hasOwnProperty("name")) builder.name = {$regex: query.name}
     if (query.hasOwnProperty("price")) builder.price = parseFloat(query.price)
     if (query.hasOwnProperty("store")) builder["store.name"] = {$regex: query.store}
@@ -117,6 +119,18 @@ async function queryProduct(client, query) {
         }
         if (parseInt(query['order']) === 1) result_arr = await result_arr.reverse()
     }
+
+    await findUser(client, query['uid']).then(user => {
+        console.log(user)
+        if (typeof user['latitude'] !== null && typeof user['longitude'] !== null) {
+            console.log("running")
+            for (let i = 0; i < result_arr.length; i++) {
+                const store = result_arr[i]['store']
+                result_arr[i]['distance'] = distanceToStore(store['latitude'], store['longitude'], user['latitude'], user['longitude'])
+            }
+        }
+    })
+
     const total_results = result_arr.length
     let lower_bound = 0
     let upper_bound = PRODUCT_INCREMENT
@@ -134,7 +148,7 @@ async function queryProduct(client, query) {
         total: total_results,
         lower_bound: lower_bound,
         upper_bound: upper_bound,
-        page_size: result_arr.length
+        page_size: result_arr.length,
     }
 }
 
@@ -166,6 +180,7 @@ function sortProductArrayByColumn(array, field, user) {
         }
         case "location" : {
             array.sort((a, b) => {
+                console.log("running")
                 const a_store = a['store']
                 const b_store = b['store']
                 const miToKm = .621371

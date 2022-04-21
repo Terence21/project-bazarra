@@ -349,7 +349,10 @@ app.get('/products/search', (async (req, res, next) => {
             upper: result['upper_bound'],
             page_size: result['page_size'],
         })
-    }).catch(next)
+    }).catch(e=> {
+        console.log(e)
+        next()
+    })
 }))
 
 app.post('/products/add', async (req, res, next) => {
