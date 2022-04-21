@@ -9,8 +9,6 @@ async function updateLocation(client, lat, lon, userId) {
 async function updateSavings(client, increment, uid) {
     const collection = client.db(USER_DB).collection(USER_COLLECTION)
     getSavings(client, uid).then(result => {
-        console.log(result)
-        console.log(increment)
         collection.updateOne({uid: uid}, {
             $set: {
                 yearlySavings: Number((increment + result['savings']['yearly']).toFixed(2)),

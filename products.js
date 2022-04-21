@@ -19,11 +19,9 @@ async function getAverageOfUpc(client, upc) {
         let total = 0
         let count = 0
         for (let item in await results) {
-            console.log(results[item])
             total += results[item]['price']
             count++
         }
-        console.log("total: ", total)
         return total / count
     })
 }
